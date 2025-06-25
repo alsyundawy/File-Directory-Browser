@@ -1,4 +1,19 @@
 <?php
+
+/**
+ * Script Name: File & Directory Browser (index.php)
+ * Function    : Menampilkan daftar file & direktori, dengan fitur cek hash (CRC32, MD5, SHA-1)
+ * Description : 
+ *   – Keamanan diperkuat melalui session cookie HttpOnly & SameSite Strict  
+ *   – Proteksi CSRF dengan token acak 32-byte  
+ *   – Sanitasi output untuk mencegah XSS  
+ *   – Header no-cache (Cache-Control, Pragma, Expires)  
+ *   – UI responsif memakai Bootstrap 5 & Font Awesome  
+ * Created By  : HARRY DERTIN SUTISNA
+ * Created On  : 25 June 2025
+ * License     : MIT License
+ */
+
 declare(strict_types=1);
 
 // Enhanced security session configuration
