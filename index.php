@@ -1,16 +1,20 @@
 <?php
-
 /**
  * Script Name: File & Directory Browser (index.php)
  * Function    : Menampilkan daftar file & direktori, dengan fitur cek hash (CRC32, MD5, SHA-1)
  * Description : 
- *   – Keamanan diperkuat melalui session cookie HttpOnly & SameSite Strict  
- *   – Proteksi CSRF dengan token acak 32-byte  
- *   – Sanitasi output untuk mencegah XSS  
- *   – Header no-cache (Cache-Control, Pragma, Expires)  
- *   – UI responsif memakai Bootstrap 5 & Font Awesome  
+ *   - Menampilkan daftar file dan direktori dengan opsi sortir berdasarkan nama, tanggal, atau ukuran
+ *   - Fitur cek hash untuk file (CRC32, MD5, SHA-1) dengan caching untuk performa
+ *   - Keamanan diperkuat melalui session cookie HttpOnly & SameSite Strict
+ *   - Proteksi CSRF dengan token acak 32-byte
+ *   - Sanitasi output untuk mencegah serangan XSS
+ *   - Header no-cache untuk memastikan konten selalu baru
+ *   - UI responsif menggunakan Bootstrap 5 dan ikon Font Awesome
+ *   - Pengaturan yang dapat disesuaikan untuk judul, subjudul, format tanggal, dll.
+ *   - Dukungan untuk berbagai tipe file dengan ikon yang sesuai
+ *   - Layar loading dan tombol kembali ke atas untuk pengalaman pengguna yang lebih baik
  * Created By  : HARRY DERTIN SUTISNA
- * Created On  : 25 June 2025
+ * Created On  : 26 June 2025
  * License     : MIT License
  */
 
@@ -31,7 +35,7 @@ session_set_cookie_params([
 ]);
 session_start();
 
-// Generate more secure CSRF token
+// Generate secure CSRF token
 try {
     if (!isset($_SESSION['csrf'])) {
         $_SESSION['csrf'] = bin2hex(random_bytes(32));
@@ -52,9 +56,7 @@ if (version_compare(PHP_VERSION, '8.0', '<')) {
 }
 
 // Validate required extensions
-$required_extensions = [
-    'pdo_sqlite', 'openssl', 'session', 'hash', 'json', 'pcre', 'spl', 'fileinfo'
-];
+$required_extensions = ['pdo_sqlite', 'openssl', 'session', 'hash', 'json', 'pcre', 'spl', 'fileinfo'];
 foreach ($required_extensions as $ext) {
     if (!extension_loaded($ext)) {
         exit("Required PHP extension '{$ext}' is not installed.");
@@ -66,36 +68,36 @@ header("Cache-Control: no-cache, no-store, must-revalidate");
 header("Pragma: no-cache");
 header("Expires: 0");
 
-// =================== KONFIGURASI ===================
+// =================== CONFIGURATION ===================
 $browseDirectories     = true;
 $title                 = 'Index of {{path}}';
 $subtitle              = '{{files}} files, {{size}} total';
 $showParent            = true;
 $showDirectories       = true;
 $showDirectoriesFirst  = true;
-$showHiddenFiles       = false; // hanya menampilkan file yang tidak diawali titik (.)
-$alignment             = 'left'; // pilihan: left, center, right
+$showHiddenFiles       = false;
+$alignment             = 'left';
 $showIcons             = true;
 $dateFormat            = 'd-M-Y H:i';
 $sizeDecimals          = 1;
-$browseDefault         = ''; // direktori awal (kosong berarti root aplikasi)
+$browseDefault         = '';
 
-// File yang akan disembunyikan (berdasarkan nama)
+// Files to hide
 $filesToHide = ['robots.txt', 'favicon.ico'];
-// Ekstensi berbahaya yang akan disembunyikan (contoh: file PHP, executable, script)
+// Dangerous extensions to hide
 $dangerousExtensions   = ['php', 'php3', 'php4', 'php5', 'html', 'htm', 'sh', 'bat', 'js', 'css', 'cmd','png'];
-// Tentukan direktori dasar (base directory) agar pengguna tidak bisa menavigasi ke luar folder aplikasi
+// Base directory
 $baseDir = realpath(__DIR__);
 
-// =================== FUNGSI UTILITY ===================
-// Sanitasi input path untuk menghindari traversal dan karakter berbahaya
+// =================== UTILITY FUNCTIONS ===================
+// Sanitize path input
 function sanitizePath($path) {
     $path = str_replace("\0", '', $path);
     $path = trim($path, "/\\");
     return preg_replace('/\.\.+/', '', $path);
 }
 
-// Fungsi untuk mengubah ukuran file menjadi format yang mudah dibaca
+// Convert file size to human readable format
 function humanizeFilesize($bytes, $decimals = 0) {
     $units = ['B', 'KB', 'MB', 'GB', 'TB'];
     $factor = 0;
@@ -106,33 +108,138 @@ function humanizeFilesize($bytes, $decimals = 0) {
     return sprintf("%.{$decimals}f", $bytes) . ' ' . $units[$factor];
 }
 
-// Fungsi untuk mendapatkan URL canonical
+// Get canonical URL
 function getCanonicalURL() {
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
     return $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
 }
 
-// =================== CEK HASH FILE DENGAN CACHE ===================
+// Get file icon class based on extension
+function getFileIconClass($filename) {
+    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+    $iconMap = [
+        // Documents
+        'pdf' => 'fa-file-pdf',
+        'doc' => 'fa-file-word',
+        'docx' => 'fa-file-word',
+        'xls' => 'fa-file-excel',
+        'xlsx' => 'fa-file-excel',
+        'ppt' => 'fa-file-powerpoint',
+        'pptx' => 'fa-file-powerpoint',
+        'txt' => 'fa-file-alt',
+        'odt' => 'fa-file-alt',
+        'ods' => 'fa-file-excel',
+        'odp' => 'fa-file-powerpoint',
+        'rtf' => 'fa-file-alt',
+        'ps' => 'fa-file-alt',
+        'epub' => 'fa-file-alt',
+        // Images
+        'jpg' => 'fa-file-image',
+        'jpeg' => 'fa-file-image',
+        'png' => 'fa-file-image',
+        'gif' => 'fa-file-image',
+        'bmp' => 'fa-file-image',
+        'svg' => 'fa-file-image',
+        'webp' => 'fa-file-image',
+        'tiff' => 'fa-file-image',
+        'ico' => 'fa-file-image',
+        'heic' => 'fa-file-image',
+        'avif' => 'fa-file-image',
+        // Audio
+        'mp3' => 'fa-file-audio',
+        'wav' => 'fa-file-audio',
+        'ogg' => 'fa-file-audio',
+        'flac' => 'fa-file-audio',
+        'aac' => 'fa-file-audio',
+        'm4a' => 'fa-file-audio',
+        'wma' => 'fa-file-audio',
+        'midi' => 'fa-file-audio',
+        // Video
+        'mp4' => 'fa-file-video',
+        'avi' => 'fa-file-video',
+        'mov' => 'fa-file-video',
+        'wmv' => 'fa-file-video',
+        'mkv' => 'fa-file-video',
+        'webm' => 'fa-file-video',
+        'flv' => 'fa-file-video',
+        'mpeg' => 'fa-file-video',
+        '3gp' => 'fa-file-video',
+        // Archives
+        'zip' => 'fa-file-archive',
+        'rar' => 'fa-file-archive',
+        '7z' => 'fa-file-archive',
+        'tar' => 'fa-file-archive',
+        'gz' => 'fa-file-archive',
+        'bz2' => 'fa-file-archive',
+        'xz' => 'fa-file-archive',
+        'zst' => 'fa-file-archive',
+        'cab' => 'fa-file-archive',
+        'z' => 'fa-file-archive',
+        'tgz' => 'fa-file-archive',
+        'tar.gz' => 'fa-file-archive',
+        'tar.bz2' => 'fa-file-archive',
+        'tar.xz' => 'fa-file-archive',
+        'tar.zst' => 'fa-file-archive',
+        // Code
+        'js' => 'fa-file-code',
+        'css' => 'fa-file-code',
+        'html' => 'fa-file-code',
+        'php' => 'fa-file-code',
+        'py' => 'fa-file-code',
+        'java' => 'fa-file-code',
+        'cpp' => 'fa-file-code',
+        'c' => 'fa-file-code',
+        'cs' => 'fa-file-code',
+        'rb' => 'fa-file-code',
+        'sh' => 'fa-file-code',
+        'json' => 'fa-file-code',
+        'yaml' => 'fa-file-code',
+        'yml' => 'fa-file-code',
+        'xml' => 'fa-file-code',
+        'ts' => 'fa-file-code',
+        'go' => 'fa-file-code',
+        'r' => 'fa-file-code',
+        'ini' => 'fa-file-code',
+        // Executables
+        'exe' => 'fa-file-code',
+        'msi' => 'fa-file-archive',
+        'apk' => 'fa-file-archive',
+        'dmg' => 'fa-file-archive',
+        'deb' => 'fa-file-archive',
+        'rpm' => 'fa-file-archive',
+        // Disk Images
+        'iso' => 'fa-file-image',
+        'img' => 'fa-file-image',
+        // Others
+        'csv' => 'fa-file-csv',
+        'md' => 'fa-file-alt',
+        'log' => 'fa-file-alt',
+        'sql' => 'fa-file-code',
+        'db' => 'fa-file-code',
+        'sqlite' => 'fa-file-code',
+        'bak' => 'fa-file-archive',
+        'torrent' => 'fa-file-alt',
+        'vcf' => 'fa-file-alt',
+        'ics' => 'fa-file-alt'
+    ];
+    return isset($iconMap[$ext]) ? $iconMap[$ext] : 'fa-file';
+}
+
+// =================== HASH CHECK WITH CACHE ===================
 if (isset($_GET['md5'])) {
-    // Ambil parameter md5 secara langsung dan sanitasi
     $requestedFile = sanitizePath($_GET['md5']);
     $fullFilePath = realpath($baseDir . DIRECTORY_SEPARATOR . $requestedFile);
     
     if ($fullFilePath !== false && strpos($fullFilePath, $baseDir) === 0 && is_file($fullFilePath)) {
         $fileName = basename($fullFilePath);
-        
-        // Tentukan ukuran file dan sesuaikan chunk size:
         $fileSize = filesize($fullFilePath);
         $chunkSize = ($fileSize > 1073741824) ? 1048576 : 32768;
         
-        // =================== CACHE MEKANISME ===================
-        // Gunakan folder tersembunyi ".cache" untuk menyimpan file cache
+        // Cache mechanism
         $cacheDir = __DIR__ . '/.cache';
         if (!is_dir($cacheDir)) {
             mkdir($cacheDir, 0755, true);
-            // Pada Nginx, file .htaccess tidak digunakan
         }
-        // Buat key cache berdasarkan path file dan waktu modifikasi
         $cacheKey  = hash('sha256', $fullFilePath . filemtime($fullFilePath));
         $cacheFile = $cacheDir . '/' . $cacheKey . '.cache';
         
@@ -142,7 +249,7 @@ if (isset($_GET['md5'])) {
             $handle = fopen($fullFilePath, 'rb');
             if (!$handle) {
                 header("HTTP/1.0 500 Internal Server Error");
-                echo "Gagal membuka file.";
+                echo "Failed to open file.";
                 exit;
             }
             $ctx_crc32 = hash_init('crc32b');
@@ -176,60 +283,47 @@ if (isset($_GET['md5'])) {
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <link rel="icon" type="image/x-icon" href="favicon.ico">
-            <title>Hash Check for <?php echo htmlspecialchars($fileName); ?></title>
+            <title>Hash Check for <?php echo sanitize_output($fileName); ?></title>
+            <meta name="description" content="Verify file integrity with CRC32, MD5, and SHA-1 hash algorithms">
+            <meta name="keywords" content="hash check, file verification, CRC32, MD5, SHA-1">
             <meta name="author" content="ALSYUNDAWY IT SOLUTION">
-            <meta name="robots" content="index,follow,all">
-            <meta name="HandheldFriendly" content="true">
-            <meta name="MobileOptimized" content="width">
-            <meta name="apple-mobile-web-app-status-bar-style" content="default">
-            <meta name="apple-mobile-web-app-capable" content="yes">
-            <meta name="mobile-web-app-capable" content="yes">
-            <meta name="language" content="ID">
-            <meta name="copyright" content="ALSYUNDAWY IT SOLUTION">
-            <meta name="distribution" content="global">
-            <meta name="publisher" content="ALSYUNDAWY IT SOLUTION">
-            <meta name="geo.placename" content="DKI JAKARTA">
-            <meta name="geo.country" content="ID">
-            <meta name="geo.region" content="ID">
-            <meta name="tgn.nation" content="Indonesia">
-            <link rel="canonical" href="<?php echo getCanonicalURL(); ?>">
-            <meta property="og:title" content="Hash Check for <?php echo htmlspecialchars($fileName); ?>">
-            <meta property="og:description" content="Verifikasi file <?php echo htmlspecialchars($fileName); ?> menggunakan algoritma hash: CRC32, MD5, SHA-1.">
-            <meta property="og:type" content="website">
-            <meta property="og:url" content="<?php echo getCanonicalURL(); ?>">
-            <meta name="twitter:card" content="summary_large_image">
-            <link rel="icon" href="favicon.ico" type="image/x-icon">
+            <meta name="robots" content="noindex,nofollow">
+            <link rel="canonical" href="<?php echo sanitize_output(getCanonicalURL()); ?>">
             <link rel="preconnect" href="https://fonts.googleapis.com">
             <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:wght@400;500;600&display=swap" rel="stylesheet">
-            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.min.css">
+            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
             <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css">
             <link rel="stylesheet" href="https://unpkg.com/@fortawesome/fontawesome-free@6.7.2/css/all.min.css">
+            <style>
+                body { font-family: 'Inter', sans-serif; }
+                .table th { width: 150px; }
+            </style>
         </head>
         <body class="bg-light">
             <div class="container py-5">
-                <h2 class="mb-4">Hash Check for <small><?php echo htmlspecialchars($fileName); ?></small></h2>
-                <table class="table table-bordered table-striped">
-                    <tbody>
-                        <tr>
-                            <th style="width:150px;">CRC32</th>
-                            <td><?php echo $crc32hash; ?></td>
-                        </tr>
-                        <tr>
-                            <th>MD5</th>
-                            <td><?php echo $md5hash; ?></td>
-                        </tr>
-                        <tr>
-                            <th>SHA-1</th>
-                            <td><?php echo $sha1hash; ?></td>
-                        </tr>
-                    </tbody>
-                </table>
+                <h2 class="mb-4">Hash Check for <small><?php echo sanitize_output($fileName); ?></small></h2>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped">
+                        <tbody>
+                            <tr>
+                                <th>CRC32</th>
+                                <td><?php echo $crc32hash; ?></td>
+                            </tr>
+                            <tr>
+                                <th>MD5</th>
+                                <td><?php echo $md5hash; ?></td>
+                            </tr>
+                            <tr>
+                                <th>SHA-1</th>
+                                <td><?php echo $sha1hash; ?></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
                 <a href="javascript:history.back()" class="btn btn-secondary mt-3">
-                    <i class="fas fa-arrow-left"></i> Kembali
+                    <i class="fas fa-arrow-left"></i> Back
                 </a>
             </div>
-            <!-- Bootstrap 5 JS Bundle -->
             <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
         </body>
         </html>
@@ -237,23 +331,21 @@ if (isset($_GET['md5'])) {
         exit;
     } else {
         header("HTTP/1.0 404 Not Found");
-        echo "File tidak ditemukan atau tidak valid.";
+        echo "File not found or invalid.";
         exit;
     }
 }
 
-// =================== MENGATUR DIREKTORI YANG DIBROWSE ===================
+// =================== SET BROWSED DIRECTORY ===================
 $self = basename($_SERVER['PHP_SELF']);
 $totalFiles = 0;
 $totalSize  = 0;
 $currentDir = $browseDefault;
 if ($browseDirectories && isset($_GET['folder'])) {
-    // Ambil parameter folder secara langsung dan sanitasi
     $requested = sanitizePath($_GET['folder']);
     $requestedPath = $baseDir . DIRECTORY_SEPARATOR . $requested;
     if (is_dir($requestedPath)) {
         $realPath = realpath($requestedPath);
-        // Jika komponen pertama adalah symlink, izinkan penelusuran
         $components = explode('/', $requested);
         $firstComponent = $components[0];
         $firstPath = $baseDir . DIRECTORY_SEPARATOR . $firstComponent;
@@ -264,13 +356,12 @@ if ($browseDirectories && isset($_GET['folder'])) {
 }
 $displayDir = '/' . ltrim($currentDir, '/');
 
-// =================== FUNGSI UNTUK MENAMPILKAN ISI DIREKTORI ===================
+// =================== LIST DIRECTORY FUNCTION ===================
 function listDirectory($path, $show_folders = false, $show_hidden = false) {
     global $totalFiles, $totalSize, $baseDir, $filesToHide, $dangerousExtensions;
     $items = [];
     $requestedPath = $baseDir . DIRECTORY_SEPARATOR . $path;
     
-    // Jika direktori merupakan symlink, resolusi target symlink
     if (is_link($requestedPath)) {
         $linkTarget = readlink($requestedPath);
         if ($linkTarget && $linkTarget[0] !== '/' ) {
@@ -318,14 +409,16 @@ function listDirectory($path, $show_folders = false, $show_hidden = false) {
             'time'    => $itemTime,
             'created' => $itemCreated
         ];
-        $totalFiles++;
-        $totalSize += $itemSize;
+        if (!$isDir) {
+            $totalFiles++;
+            $totalSize += $itemSize;
+        }
     }
     return $items;
 }
 $items = listDirectory($currentDir, $showDirectories, $showHiddenFiles);
 
-// =================== SORTING FILES & DIREKTORI ===================
+// =================== SORTING FILES & DIRECTORIES ===================
 $sort  = isset($_GET['sort']) ? $_GET['sort'] : 'name';
 $order = isset($_GET['order']) ? strtolower($_GET['order']) : 'asc';
 usort($items, function($a, $b) use ($sort, $order, $showDirectoriesFirst) {
@@ -349,73 +442,399 @@ usort($items, function($a, $b) use ($sort, $order, $showDirectoriesFirst) {
     return ($order === 'desc') ? -$result : $result;
 });
 
-// Ambil waktu direktori saat ini untuk header
-$currentDirPath = realpath($baseDir . DIRECTORY_SEPARATOR . $currentDir);
-$dirStat = $currentDirPath ? @stat($currentDirPath) : false;
-$dirCreated = ($dirStat && isset($dirStat['birthtime']) && $dirStat['birthtime'] > 0)
-    ? $dirStat['birthtime']
-    : ($currentDirPath ? filemtime($currentDirPath) : null);
-
-// Kelas alignment untuk Bootstrap 5
-$alignmentClass = 'text-start';
-if ($alignment === 'center') {
-    $alignmentClass = 'text-center';
-} elseif ($alignment === 'right') {
-    $alignmentClass = 'text-end';
-}
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars(str_replace('{{path}}', $displayDir, $title)); ?></title>
+    <title><?php echo sanitize_output(str_replace('{{path}}', $displayDir, $title)); ?> - File Browser</title>
+    <meta name="description" content="Browse files and directories securely with hash verification support. Features include CRC32, MD5, SHA-1 checksums, responsive design, and enhanced security.">
+    <meta name="keywords" content="file browser, directory listing, hash check, CRC32, MD5, SHA-1, secure browsing, responsive design">
+    <meta name="author" content="ALSYUNDAWY IT SOLUTION">
     <meta name="robots" content="index, follow">
-	<!-- Meta Description -->
-	<meta name="description" content="File & Directory Browser berbasis PHP dengan keamanan diperkuat: session cookie HttpOnly & SameSite Strict, proteksi CSRF, sanitasi output, verifikasi hash (CRC32, MD5, SHA-1), header no-cache, serta UI responsif menggunakan Bootstrap 5 dan Font Awesome.">
-
-	<!-- Meta Keywords -->
-	<meta name="keywords" content="PHP file browser, direktori listing, secure session, CSRF protection, sanitize_output, hash check, CRC32, MD5, SHA1, no-cache headers, Bootstrap 5, Font Awesome, file security, sanitizePath, PHP8">
-
-    <link rel="canonical" href="<?php echo getCanonicalURL(); ?>">
-    <meta property="og:title" content="File & Directory Browser">
-    <meta property="og:description" content="Jelajahi file dan direktori dengan mudah dan cek keamanan file menggunakan MD5, CRC32, dan SHA-1.">
+    <meta name="language" content="en">
+    <meta name="revisit-after" content="7 days">
+    <meta property="og:title" content="<?php echo sanitize_output(str_replace('{{path}}', $displayDir, $title)); ?>">
+    <meta property="og:description" content="Secure file and directory browser with hash verification capabilities">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="<?php echo getCanonicalURL(); ?>">
+    <meta property="og:url" content="<?php echo sanitize_output(getCanonicalURL()); ?>">
+    <meta property="og:site_name" content="File Browser">
     <meta name="twitter:card" content="summary_large_image">
-    <!-- Favicon -->
+    <meta name="twitter:title" content="<?php echo sanitize_output(str_replace('{{path}}', $displayDir, $title)); ?>">
+    <meta name="twitter:description" content="Secure file and directory browser">
+    <link rel="canonical" href="<?php echo sanitize_output(getCanonicalURL()); ?>">
     <link rel="icon" href="favicon.ico" type="image/x-icon">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://unpkg.com/@fortawesome/fontawesome-free@6.7.2/css/all.min.css">
     <style>
-         body { font-family: 'Inter', sans-serif; font-weight: 400; color: #2c3e50; background-color: #f8f9fa; }
-        a { text-decoration: none; }
-        a:hover { text-decoration: none; }
-        .table-hover tbody tr:hover { background-color: #f8f9fa; }
-        .icon { width: 20px; }
-        header, footer { margin: 20px 0; }
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #f8f9fa;
+            --border-color: #dee2e6;
+            --hover-color: #e9ecef;
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            font-weight: 400;
+            color: var(--primary-color);
+            background-color: var(--secondary-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+        }
+        
+        a {
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.3s ease;
+        }
+        
+        a:hover {
+            text-decoration: none;
+            opacity: 0.8;
+        }
+        
+        /* Loading Screen */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.3s ease;
+        }
+        
+        .loading-screen.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: inline-block;
+            border-top: 4px solid #2c3e50;
+            border-right: 4px solid transparent;
+            animation: rotation 1s linear infinite;
+            position: relative;
+        }
+        
+        .spinner::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border-bottom: 4px solid #FF3D00;
+            border-left: 4px solid transparent;
+        }
+        
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            margin-top: 20px;
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+        
+        /* Header Styles */
+        header {
+            background: white;
+            padding: 2rem 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        
+        header img {
+            max-height: 120px;
+            width: auto;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        
+        header img:hover {
+            transform: scale(1.05);
+        }
+        
+        header h1 {
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        /* Container Styles */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 15px;
+        }
+        
+        /* Page Header */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+            gap: 1rem;
+        }
+        
+        .page-title h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0;
+            word-break: break-word;
+        }
+        
+        .page-subtitle {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+        
+        /* Sort Buttons */
+        .sort-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .sort-buttons .btn {
+            font-size: 0.875rem;
+            padding: 0.375rem 0.75rem;
+            white-space: nowrap;
+        }
+        
+        /* Table Styles */
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .table {
+            margin-bottom: 0;
+            font-size: 0.9rem;
+        }
+        
+        .table thead th {
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: 500;
+            border: none;
+            padding: 0.75rem;
+            white-space: nowrap;
+        }
+        
+        .table tbody tr {
+            transition: background-color 0.2s ease;
+        }
+        
+        .table tbody tr:hover {
+            background-color: var(--hover-color);
+        }
+        
+        .table td {
+            padding: 0.75rem;
+            vertical-align: middle;
+            border-color: var(--border-color);
+        }
+        
+        /* Column Widths */
+        .col-name { width: auto; }
+        .col-date { width: 140px; white-space: nowrap; }
+        .col-size { width: 80px; text-align: right; }
+        .col-hash { width: 80px; text-align: center; }
+        
+        /* Icon Styles */
+        .file-icon {
+            margin-right: 0.5rem;
+            width: 16px;
+            text-align: center;
+        }
+        
+        /* Back to Top Button */
+        .back-to-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 40px;
+            height: 40px;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        
+        .back-to-top.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .back-to-top:hover {
+            background: #1a252f;
+            transform: translateY(-3px);
+        }
+        
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 2rem 0;
+            margin-top: 4rem;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.5rem;
+            }
+            
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .sort-buttons {
+                width: 100%;
+            }
+            
+            .sort-buttons .btn {
+                flex: 1;
+                font-size: 0.75rem;
+                padding: 0.25rem 0.5rem;
+            }
+            
+            .table {
+                font-size: 0.8rem;
+            }
+            
+            .table td, .table th {
+                padding: 0.5rem;
+            }
+            
+            .col-date {
+                width: 100px;
+                font-size: 0.75rem;
+            }
+            
+            .col-size {
+                width: 60px;
+                font-size: 0.75rem;
+            }
+            
+            .col-hash {
+                width: 50px;
+            }
+            
+            .back-to-top {
+                bottom: 20px;
+                right: 20px;
+                width: 35px;
+                height: 35px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            header img {
+                max-height: 80px;
+            }
+            
+            .page-title h2 {
+                font-size: 1.2rem;
+            }
+            
+            .col-date {
+                display: none;
+            }
+            
+            .hide-mobile {
+                display: none !important;
+            }
+        }
+        
+        /* High Resolution Support */
+        @media (min-width: 1440px) {
+            .container {
+                max-width: 1320px;
+            }
+            
+            .table {
+                font-size: 1rem;
+            }
+        }
+        
+        @media (min-width: 1920px) {
+            .container {
+                max-width: 1540px;
+            }
+        }
+        
+        /* Print Styles */
+        @media print {
+            .sort-buttons,
+            .back-to-top,
+            .btn {
+                display: none !important;
+            }
+        }
     </style>
 </head>
-<body class="bg-light">
+<body>
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loadingScreen">
+        <span class="spinner"></span>
+        <div class="loading-text">Loading...</div>
+    </div>
+    
     <!-- Header -->
-    <header class="text-center">
-        <img src="logo.png" alt="Logo" class="img-fluid" style="max-height: 200px;">
-        <h2 class="mt-3">File & Directory Browser</h2>
-        <p class="mb-0 text-muted">
-            Deskripsi: Menampilkan daftar file dan direktori yang tersedia.<br>
-            Dibuat: <?php echo $dirCreated ? date($dateFormat, $dirCreated) : '-'; ?>
-            | Terakhir Diubah: <?php echo $currentDirPath ? date($dateFormat, filemtime($currentDirPath)) : '-'; ?>
-        </p>
+    <header>
+        <div class="container text-center">
+            <a href="?" title="Back to Home">
+                <img src="logo.png" alt="File Browser Logo" loading="lazy">
+            </a>
+            <h1>File & Directory Browser</h1>
+            <p class="text-muted mb-0">Menampilkan daftar file dan direktori yang tersedia.</p>
+        </div>
     </header>
-    <div class="container py-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h1 class="display-5"><?php echo htmlspecialchars(str_replace('{{path}}', $displayDir, $title)); ?></h1>
-                <p class="text-muted">
+    
+    <!-- Main Content -->
+    <main class="container">
+        <div class="page-header">
+            <div class="page-title">
+                <h2><?php echo sanitize_output(str_replace('{{path}}', $displayDir, $title)); ?></h2>
+                <p class="page-subtitle">
                     <?php echo str_replace(
                         ['{{files}}', '{{size}}'],
                         [$totalFiles, humanizeFilesize($totalSize, $sizeDecimals)],
@@ -423,92 +842,184 @@ if ($alignment === 'center') {
                     ); ?>
                 </p>
             </div>
-            <!-- Menu Sorting -->
-            <div>
-                <div class="btn-group" role="group" aria-label="Sort Options">
-                    <a href="?folder=<?php echo urlencode($currentDir); ?>&sort=name&order=<?php echo ($sort==='name' && $order==='asc') ? 'desc' : 'asc'; ?>" class="btn btn-outline-secondary">
-                        <i class="fas fa-sort-alpha-down"></i> Name
-                    </a>
-                    <a href="?folder=<?php echo urlencode($currentDir); ?>&sort=modified&order=<?php echo ($sort==='modified' && $order==='asc') ? 'desc' : 'asc'; ?>" class="btn btn-outline-secondary">
-                        <i class="fas fa-calendar-alt"></i> Modified
-                    </a>
-                    <a href="?folder=<?php echo urlencode($currentDir); ?>&sort=size&order=<?php echo ($sort==='size' && $order==='asc') ? 'desc' : 'asc'; ?>" class="btn btn-outline-secondary">
-                        <i class="fas fa-weight-hanging"></i> Size
-                    </a>
-                </div>
+            <div class="sort-buttons">
+                <a href="?folder=<?php echo urlencode($currentDir); ?>&sort=name&order=<?php echo ($sort==='name' && $order==='asc') ? 'desc' : 'asc'; ?>" 
+                   class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-sort-alpha-down"></i> Name
+                </a>
+                <a href="?folder=<?php echo urlencode($currentDir); ?>&sort=modified&order=<?php echo ($sort==='modified' && $order==='asc') ? 'desc' : 'asc'; ?>" 
+                   class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-calendar-alt"></i> Date
+                </a>
+                <a href="?folder=<?php echo urlencode($currentDir); ?>&sort=size&order=<?php echo ($sort==='size' && $order==='asc') ? 'desc' : 'asc'; ?>" 
+                   class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-weight-hanging"></i> Size
+                </a>
             </div>
         </div>
-        <div class="table-responsive">
-            <table class="table table-bordered table-striped table-hover <?php echo $alignmentClass; ?>">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Name</th>
-                        <th>Last Modified</th>
-                        <th>Size</th>
-                        <th>Created</th>
-                        <th>Hash Check</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Parent Directory -->
-                    <?php if ($showParent && !empty($currentDir)):
-                        $parentDir = dirname($currentDir);
-                    ?>
-                    <tr>
-                        <td>
-                            <a href="?folder=<?php echo urlencode($parentDir); ?>">
-                                <i class="fas fa-arrow-up icon"></i> Parent Directory
-                            </a>
-                        </td>
-                        <td>-</td>
-                        <td>-</td>
-                        <td>-</td>
-                        <td>-</td>
-                    </tr>
-                    <?php endif; ?>
-                    <!-- Daftar File dan Folder -->
-                    <?php foreach ($items as $item):
-                        $itemName = htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8');
-                        if ($item['isDir']) {
-                            $link = '?folder=' . urlencode(trim($currentDir . '/' . $item['name'], '/'));
-                        } else {
-                            $link = htmlspecialchars(trim($currentDir . '/' . $item['name'], '/'));
-                        }
-                    ?>
-                    <tr>
-                        <td>
-                            <?php if ($item['isDir']): ?>
-                                <a href="<?php echo $link; ?>">
-                                    <i class="fas fa-folder icon"></i> <?php echo $itemName; ?>
+        
+        <div class="table-container">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th class="col-name">Name</th>
+                            <th class="col-date">Date</th>
+                            <th class="col-size">Size</th>
+                            <th class="col-hash">Hash Check</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if ($showParent && !empty($currentDir)):
+                            $parentDir = dirname($currentDir);
+                        ?>
+                        <tr>
+                            <td colspan="4">
+                                <a href="?folder=<?php echo urlencode($parentDir); ?>" class="d-flex align-items-center">
+                                    <i class="fas fa-arrow-up file-icon"></i> Parent Directory
                                 </a>
-                            <?php else: ?>
-                                <a href="<?php echo $link; ?>">
-                                    <i class="fas fa-file icon"></i> <?php echo $itemName; ?>
+                            </td>
+                        </tr>
+                        <?php endif; ?>
+                        
+                        <?php foreach ($items as $item):
+                            $itemName = sanitize_output($item['name']);
+                            $iconClass = $item['isDir'] ? 'fa-folder' : getFileIconClass($item['name']);
+                            if ($item['isDir']) {
+                                $link = '?folder=' . urlencode(trim($currentDir . '/' . $item['name'], '/'));
+                            } else {
+                                $link = sanitize_output(trim($currentDir . '/' . $item['name'], '/'));
+                            }
+                        ?>
+                        <tr>
+                            <td class="col-name">
+                                <a href="<?php echo $link; ?>" class="d-flex align-items-center">
+                                    <i class="fas <?php echo $iconClass; ?> file-icon"></i>
+                                    <span><?php echo $itemName; ?></span>
                                 </a>
-                            <?php endif; ?>
-                        </td>
-                        <td><?php echo date($dateFormat, $item['time']); ?></td>
-                        <td><?php echo $item['isDir'] ? '-' : humanizeFilesize($item['size'], $sizeDecimals); ?></td>
-                        <td><?php echo date($dateFormat, $item['created']); ?></td>
-                        <td>
-                            <?php if (!$item['isDir']): ?>
-                                <a href="?md5=<?php echo urlencode(trim($currentDir . '/' . $item['name'], '/')); ?>" class="btn btn-sm btn-outline-info" title="Cek Hash">
-                                    <i class="fas fa-key"></i>
-                                </a>
-                            <?php else: echo '-'; endif; ?>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+                            </td>
+                            <td class="col-date"><?php echo date('d-M-Y H:i', $item['time']); ?></td>
+                            <td class="col-size"><?php echo $item['isDir'] ? '-' : humanizeFilesize($item['size'], $sizeDecimals); ?></td>
+                            <td class="col-hash text-center">
+                                <?php if (!$item['isDir']): ?>
+                                    <a href="?md5=<?php echo urlencode(trim($currentDir . '/' . $item['name'], '/')); ?>" 
+                                       class="btn btn-sm btn-outline-info" 
+                                       title="Check Hash">
+                                        <i class="fas fa-key"></i>
+                                    </a>
+                                <?php else: ?>
+                                    -
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                        
+                        <?php if (empty($items)): ?>
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">
+                                <i class="fas fa-folder-open fa-3x mb-3"></i>
+                                <p>No files or directories found</p>
+                            </td>
+                        </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
+    </main>
+    
     <!-- Footer -->
-    <footer class="text-center">
-        <p class="text-muted mb-0"><a target="_blank" href="https://alsyundawy.com">ALSYUNDAWY IT SOLUTION. ALL RIGHTS RESERVED</a> &copy; <?php echo date("Y"); ?></p>
+    <footer>
+        <div class="container">
+            <p class="text-muted mb-0">
+                <a href="https://alsyundawy.com" target="_blank" rel="noopener">
+                    ALSYUNDAWY IT SOLUTION
+                </a> 
+                &copy; <?php echo date("Y"); ?> - All Rights Reserved
+            </p>
+        </div>
     </footer>
-    <!-- Bootstrap 5 JS Bundle -->
-    <script defer src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Back to Top Button -->
+    <div class="back-to-top" id="backToTop" title="Back to Top">
+        <i class="fas fa-arrow-up"></i>
+    </div>
+    
+    <!-- Scripts -->
+    <script>
+        // Loading Screen Logic
+        (function() {
+            const loadingScreen = document.getElementById('loadingScreen');
+            const isNavigating = sessionStorage.getItem('isNavigating');
+            
+            if (isNavigating === 'true') {
+                // Folder navigation - 0.5s loading
+                setTimeout(() => {
+                    loadingScreen.classList.add('fade-out');
+                    setTimeout(() => loadingScreen.style.display = 'none', 300);
+                }, 500);
+            } else {
+                // Initial load - 1s loading
+                setTimeout(() => {
+                    loadingScreen.classList.add('fade-out');
+                    setTimeout(() => loadingScreen.style.display = 'none', 300);
+                }, 1000);
+            }
+            
+            // Set navigation flag for links
+            document.querySelectorAll('a').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    if (this.href && !this.target && !this.href.includes('#')) {
+                        sessionStorage.setItem('isNavigating', 'true');
+                    }
+                });
+            });
+            
+            // Clear flag on page unload
+            window.addEventListener('beforeunload', function() {
+                setTimeout(() => {
+                    sessionStorage.removeItem('isNavigating');
+                }, 100);
+            });
+        })();
+        
+        // Back to Top Button Logic
+        (function() {
+            const backToTop = document.getElementById('backToTop');
+            let scrollTimeout;
+            
+            function toggleBackToTop() {
+                if (window.scrollY > 300) {
+                    backToTop.classList.add('show');
+                } else {
+                    backToTop.classList.remove('show');
+                }
+            }
+            
+            window.addEventListener('scroll', function() {
+                clearTimeout(scrollTimeout);
+                scrollTimeout = setTimeout(toggleBackToTop, 100);
+            });
+            
+            backToTop.addEventListener('click', function() {
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            });
+            
+            // Initial check
+            toggleBackToTop();
+        })();
+        
+        // Prevent ad blockers from interfering
+        (function() {
+            // Create elements with non-suspicious class names
+            const elements = document.querySelectorAll('.spinner, .back-to-top');
+            elements.forEach(el => {
+                el.style.cssText = el.style.cssText + ';display:flex!important;';
+            });
+        })();
+    </script>
 </body>
 </html>
