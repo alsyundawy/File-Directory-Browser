@@ -1,20 +1,22 @@
 <?php
 /**
  * Script Name: File & Directory Browser (index.php)
- * Function    : Menampilkan daftar file & direktori, dengan fitur cek hash (CRC32, MD5, SHA-1)
+ * Function    : Menampilkan daftar file & direktori, dengan fitur cek hash (CRC32, MD5, SHA-1) dan search
  * Description : 
  *   - Menampilkan daftar file dan direktori dengan opsi sortir berdasarkan nama, tanggal, atau ukuran
+ *   - Fitur search real-time untuk mencari file dan direktori
  *   - Fitur cek hash untuk file (CRC32, MD5, SHA-1) dengan caching untuk performa
+ *   - Support penuh untuk symlink folders dan files
  *   - Keamanan diperkuat melalui session cookie HttpOnly & SameSite Strict
  *   - Proteksi CSRF dengan token acak 32-byte
  *   - Sanitasi output untuk mencegah serangan XSS
  *   - Header no-cache untuk memastikan konten selalu baru
  *   - UI responsif menggunakan Bootstrap 5 dan ikon Font Awesome
- *   - Pengaturan yang dapat disesuaikan untuk judul, subjudul, format tanggal, dll.
- *   - Dukungan untuk berbagai tipe file dengan ikon yang sesuai
- *   - Layar loading dan tombol kembali ke atas untuk pengalaman pengguna yang lebih baik
+ *   - Font rendering yang tajam dan jelas
+ *   - Performa dioptimalkan dengan minimal CSS dan JS
  * Created By  : HARRY DERTIN SUTISNA
  * Created On  : 26 June 2025
+ * Updated On  : 30 June 2025
  * License     : MIT License
  */
 
@@ -225,14 +227,34 @@ function getFileIconClass($filename) {
     return isset($iconMap[$ext]) ? $iconMap[$ext] : 'fa-file';
 }
 
+// Resolve symlink path properly
+function resolveSymlinkPath($path) {
+    if (is_link($path)) {
+        $linkTarget = readlink($path);
+        if ($linkTarget && $linkTarget[0] !== '/') {
+            $linkTarget = dirname($path) . DIRECTORY_SEPARATOR . $linkTarget;
+        }
+        return realpath($linkTarget) ?: $path;
+    }
+    return $path;
+}
+
 // =================== HASH CHECK WITH CACHE ===================
 if (isset($_GET['md5'])) {
     $requestedFile = sanitizePath($_GET['md5']);
-    $fullFilePath = realpath($baseDir . DIRECTORY_SEPARATOR . $requestedFile);
+    $fullFilePath = $baseDir . DIRECTORY_SEPARATOR . $requestedFile;
     
-    if ($fullFilePath !== false && strpos($fullFilePath, $baseDir) === 0 && is_file($fullFilePath)) {
+    // Handle symlinks properly
+    if (is_link($fullFilePath)) {
+        $fullFilePath = resolveSymlinkPath($fullFilePath);
+    } else {
+        $fullFilePath = realpath($fullFilePath);
+    }
+    
+    if ($fullFilePath !== false && is_file($fullFilePath)) {
         $fileName = basename($fullFilePath);
         $fileSize = filesize($fullFilePath);
+        $fileSizeHuman = humanizeFilesize($fileSize, 2);
         $chunkSize = ($fileSize > 1073741824) ? 1048576 : 32768;
         
         // Cache mechanism
@@ -295,16 +317,24 @@ if (isset($_GET['md5'])) {
             <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css">
             <link rel="stylesheet" href="https://unpkg.com/@fortawesome/fontawesome-free@6.7.2/css/all.min.css">
             <style>
-                body { font-family: 'Inter', sans-serif; }
+                body { 
+                    font-family: 'Inter', sans-serif; 
+                    -webkit-font-smoothing: antialiased;
+                    -moz-osx-font-smoothing: grayscale;
+                }
                 .table th { width: 150px; }
             </style>
         </head>
-        <body class="bg-light">
+        <body class="bg-white">
             <div class="container py-5">
                 <h2 class="mb-4">Hash Check for <small><?php echo sanitize_output($fileName); ?></small></h2>
                 <div class="table-responsive">
                     <table class="table table-bordered table-striped">
                         <tbody>
+                            <tr>
+                                <th>File Size</th>
+                                <td><?php echo $fileSizeHuman; ?> (<?php echo number_format($fileSize); ?> bytes)</td>
+                            </tr>
                             <tr>
                                 <th>CRC32</th>
                                 <td><?php echo $crc32hash; ?></td>
@@ -344,12 +374,16 @@ $currentDir = $browseDefault;
 if ($browseDirectories && isset($_GET['folder'])) {
     $requested = sanitizePath($_GET['folder']);
     $requestedPath = $baseDir . DIRECTORY_SEPARATOR . $requested;
-    if (is_dir($requestedPath)) {
+    
+    // Enhanced symlink support
+    if (is_link($requestedPath)) {
+        $realPath = resolveSymlinkPath($requestedPath);
+        if ($realPath && is_dir($realPath)) {
+            $currentDir = $requested;
+        }
+    } else if (is_dir($requestedPath)) {
         $realPath = realpath($requestedPath);
-        $components = explode('/', $requested);
-        $firstComponent = $components[0];
-        $firstPath = $baseDir . DIRECTORY_SEPARATOR . $firstComponent;
-        if (is_link($firstPath) || ($realPath !== false && strpos($realPath, $baseDir) === 0)) {
+        if ($realPath !== false && strpos($realPath, $baseDir) === 0) {
             $currentDir = $requested;
         }
     }
@@ -362,12 +396,9 @@ function listDirectory($path, $show_folders = false, $show_hidden = false) {
     $items = [];
     $requestedPath = $baseDir . DIRECTORY_SEPARATOR . $path;
     
+    // Enhanced symlink handling
     if (is_link($requestedPath)) {
-        $linkTarget = readlink($requestedPath);
-        if ($linkTarget && $linkTarget[0] !== '/' ) {
-            $linkTarget = realpath(dirname($requestedPath) . DIRECTORY_SEPARATOR . $linkTarget);
-        }
-        $fullPath = ($linkTarget && is_dir($linkTarget)) ? $linkTarget : $requestedPath;
+        $fullPath = resolveSymlinkPath($requestedPath);
     } else {
         $fullPath = realpath($requestedPath);
     }
@@ -376,7 +407,11 @@ function listDirectory($path, $show_folders = false, $show_hidden = false) {
         return $items;
     }
     
-    $files = scandir($fullPath);
+    $files = @scandir($fullPath);
+    if ($files === false) {
+        return $items;
+    }
+    
     foreach ($files as $file) {
         if ($file === '.' || $file === '..') {
             continue;
@@ -387,31 +422,39 @@ function listDirectory($path, $show_folders = false, $show_hidden = false) {
         if (!$show_hidden && substr($file, 0, 1) === '.') {
             continue;
         }
+        
         $itemFullPath = $fullPath . DIRECTORY_SEPARATOR . $file;
         $isDir = is_dir($itemFullPath);
+        
         if (!$isDir) {
             $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
             if (in_array($ext, $dangerousExtensions)) {
                 continue;
             }
         }
-        $itemSize = $isDir ? 0 : filesize($itemFullPath);
-        $itemTime = filemtime($itemFullPath);
+        
+        $itemSize = $isDir ? 0 : @filesize($itemFullPath);
+        $itemTime = @filemtime($itemFullPath);
         $stat = @stat($itemFullPath);
         $itemCreated = (isset($stat['birthtime']) && $stat['birthtime'] > 0)
                        ? $stat['birthtime']
-                       : filemtime($itemFullPath);
-    
+                       : $itemTime;
+        
+        // Check if item is a symlink
+        $isSymlink = is_link($fullPath . DIRECTORY_SEPARATOR . $file);
+        
         $items[] = [
             'name'    => $file,
             'isDir'   => $isDir,
-            'size'    => $itemSize,
-            'time'    => $itemTime,
-            'created' => $itemCreated
+            'size'    => $itemSize ?: 0,
+            'time'    => $itemTime ?: 0,
+            'created' => $itemCreated ?: 0,
+            'isSymlink' => $isSymlink
         ];
+        
         if (!$isDir) {
             $totalFiles++;
-            $totalSize += $itemSize;
+            $totalSize += $itemSize ?: 0;
         }
     }
     return $items;
@@ -473,9 +516,10 @@ usort($items, function($a, $b) use ($sort, $order, $showDirectoriesFirst) {
     <style>
         :root {
             --primary-color: #2c3e50;
-            --secondary-color: #f8f9fa;
+            --secondary-color: #ffffff;
             --border-color: #dee2e6;
-            --hover-color: #e9ecef;
+            --hover-color: #f8f9fa;
+            --text-color: #212529;
         }
         
         * {
@@ -483,19 +527,22 @@ usort($items, function($a, $b) use ($sort, $order, $showDirectoriesFirst) {
         }
         
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-weight: 400;
-            color: var(--primary-color);
+            color: var(--text-color);
             background-color: var(--secondary-color);
             line-height: 1.6;
             margin: 0;
             padding: 0;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
         }
         
         a {
             text-decoration: none;
             color: inherit;
-            transition: all 0.3s ease;
+            transition: opacity 0.2s ease;
         }
         
         a:hover {
@@ -571,6 +618,8 @@ usort($items, function($a, $b) use ($sort, $order, $showDirectoriesFirst) {
             width: auto;
             cursor: pointer;
             transition: transform 0.3s ease;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
         }
         
         header img:hover {
@@ -582,6 +631,7 @@ usort($items, function($a, $b) use ($sort, $order, $showDirectoriesFirst) {
             font-weight: 600;
             margin-top: 1rem;
             margin-bottom: 0.5rem;
+            letter-spacing: -0.5px;
         }
         
         /* Container Styles */
@@ -606,12 +656,49 @@ usort($items, function($a, $b) use ($sort, $order, $showDirectoriesFirst) {
             font-weight: 600;
             margin: 0;
             word-break: break-word;
+            letter-spacing: -0.3px;
         }
         
         .page-subtitle {
             color: #6c757d;
             font-size: 0.9rem;
             margin-top: 0.5rem;
+        }
+        
+        /* Search Input */
+        .search-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .search-input {
+            display: flex;
+            align-items: center;
+            position: relative;
+        }
+        
+        .search-input input {
+            padding: 0.375rem 2.5rem 0.375rem 0.75rem;
+            border: 1px solid #ced4da;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            width: 200px;
+            transition: all 0.2s ease;
+        }
+        
+        .search-input input:focus {
+            outline: none;
+            border-color: #80bdff;
+            box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+        }
+        
+        .search-input .search-icon {
+            position: absolute;
+            right: 0.75rem;
+            color: #6c757d;
+            pointer-events: none;
         }
         
         /* Sort Buttons */
@@ -625,6 +712,7 @@ usort($items, function($a, $b) use ($sort, $order, $showDirectoriesFirst) {
             font-size: 0.875rem;
             padding: 0.375rem 0.75rem;
             white-space: nowrap;
+            font-weight: 500;
         }
         
         /* Table Styles */
@@ -647,6 +735,7 @@ usort($items, function($a, $b) use ($sort, $order, $showDirectoriesFirst) {
             border: none;
             padding: 0.75rem;
             white-space: nowrap;
+            letter-spacing: 0.3px;
         }
         
         .table tbody tr {
@@ -655,6 +744,10 @@ usort($items, function($a, $b) use ($sort, $order, $showDirectoriesFirst) {
         
         .table tbody tr:hover {
             background-color: var(--hover-color);
+        }
+        
+        .table tbody tr.search-hidden {
+            display: none;
         }
         
         .table td {
@@ -674,6 +767,14 @@ usort($items, function($a, $b) use ($sort, $order, $showDirectoriesFirst) {
             margin-right: 0.5rem;
             width: 16px;
             text-align: center;
+            font-size: 1rem;
+        }
+        
+        .symlink-badge {
+            font-size: 0.7rem;
+            margin-left: 0.25rem;
+            vertical-align: super;
+            color: #6c757d;
         }
         
         /* Back to Top Button */
@@ -712,7 +813,18 @@ usort($items, function($a, $b) use ($sort, $order, $showDirectoriesFirst) {
             text-align: center;
             padding: 2rem 0;
             margin-top: 4rem;
-            border-top: 1px solid var(--border-color);
+        }
+        
+        /* No results */
+        .no-results {
+            display: none;
+            text-align: center;
+            padding: 3rem;
+            color: #6c757d;
+        }
+        
+        .no-results.show {
+            display: block;
         }
         
         /* Responsive Design */
@@ -724,6 +836,21 @@ usort($items, function($a, $b) use ($sort, $order, $showDirectoriesFirst) {
             .page-header {
                 flex-direction: column;
                 align-items: flex-start;
+            }
+            
+            .search-container {
+                width: 100%;
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .search-input {
+                width: 100%;
+                margin-bottom: 0.5rem;
+            }
+            
+            .search-input input {
+                width: 100%;
             }
             
             .sort-buttons {
@@ -803,11 +930,19 @@ usort($items, function($a, $b) use ($sort, $order, $showDirectoriesFirst) {
         
         /* Print Styles */
         @media print {
+            .search-container,
             .sort-buttons,
             .back-to-top,
             .btn {
                 display: none !important;
             }
+        }
+        
+        /* Font rendering optimization */
+        .fas, .fa {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            font-weight: 900 !important;
         }
     </style>
 </head>
@@ -842,25 +977,31 @@ usort($items, function($a, $b) use ($sort, $order, $showDirectoriesFirst) {
                     ); ?>
                 </p>
             </div>
-            <div class="sort-buttons">
-                <a href="?folder=<?php echo urlencode($currentDir); ?>&sort=name&order=<?php echo ($sort==='name' && $order==='asc') ? 'desc' : 'asc'; ?>" 
-                   class="btn btn-outline-secondary btn-sm">
-                    <i class="fas fa-sort-alpha-down"></i> Name
-                </a>
-                <a href="?folder=<?php echo urlencode($currentDir); ?>&sort=modified&order=<?php echo ($sort==='modified' && $order==='asc') ? 'desc' : 'asc'; ?>" 
-                   class="btn btn-outline-secondary btn-sm">
-                    <i class="fas fa-calendar-alt"></i> Date
-                </a>
-                <a href="?folder=<?php echo urlencode($currentDir); ?>&sort=size&order=<?php echo ($sort==='size' && $order==='asc') ? 'desc' : 'asc'; ?>" 
-                   class="btn btn-outline-secondary btn-sm">
-                    <i class="fas fa-weight-hanging"></i> Size
-                </a>
+            <div class="search-container">
+                <div class="search-input">
+                    <input type="text" id="searchInput" placeholder="Search files..." autocomplete="off">
+                    <i class="fas fa-search search-icon"></i>
+                </div>
+                <div class="sort-buttons">
+                    <a href="?folder=<?php echo urlencode($currentDir); ?>&sort=name&order=<?php echo ($sort==='name' && $order==='asc') ? 'desc' : 'asc'; ?>" 
+                       class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-sort-alpha-down"></i> Name
+                    </a>
+                    <a href="?folder=<?php echo urlencode($currentDir); ?>&sort=modified&order=<?php echo ($sort==='modified' && $order==='asc') ? 'desc' : 'asc'; ?>" 
+                       class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-calendar-alt"></i> Date
+                    </a>
+                    <a href="?folder=<?php echo urlencode($currentDir); ?>&sort=size&order=<?php echo ($sort==='size' && $order==='asc') ? 'desc' : 'asc'; ?>" 
+                       class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-weight-hanging"></i> Size
+                    </a>
+                </div>
             </div>
         </div>
         
         <div class="table-container">
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover" id="fileTable">
                     <thead>
                         <tr>
                             <th class="col-name">Name</th>
@@ -873,7 +1014,7 @@ usort($items, function($a, $b) use ($sort, $order, $showDirectoriesFirst) {
                         <?php if ($showParent && !empty($currentDir)):
                             $parentDir = dirname($currentDir);
                         ?>
-                        <tr>
+                        <tr class="parent-row">
                             <td colspan="4">
                                 <a href="?folder=<?php echo urlencode($parentDir); ?>" class="d-flex align-items-center">
                                     <i class="fas fa-arrow-up file-icon"></i> Parent Directory
@@ -891,11 +1032,16 @@ usort($items, function($a, $b) use ($sort, $order, $showDirectoriesFirst) {
                                 $link = sanitize_output(trim($currentDir . '/' . $item['name'], '/'));
                             }
                         ?>
-                        <tr>
+                        <tr data-name="<?php echo strtolower($itemName); ?>">
                             <td class="col-name">
                                 <a href="<?php echo $link; ?>" class="d-flex align-items-center">
                                     <i class="fas <?php echo $iconClass; ?> file-icon"></i>
                                     <span><?php echo $itemName; ?></span>
+                                    <?php if ($item['isSymlink']): ?>
+                                        <small class="symlink-badge" title="Symbolic Link">
+                                            <i class="fas fa-link"></i>
+                                        </small>
+                                    <?php endif; ?>
                                 </a>
                             </td>
                             <td class="col-date"><?php echo date('d-M-Y H:i', $item['time']); ?></td>
@@ -924,6 +1070,10 @@ usort($items, function($a, $b) use ($sort, $order, $showDirectoriesFirst) {
                         <?php endif; ?>
                     </tbody>
                 </table>
+                <div class="no-results" id="noResults">
+                    <i class="fas fa-search fa-3x mb-3"></i>
+                    <p>No files matching your search</p>
+                </div>
             </div>
         </div>
     </main>
@@ -947,26 +1097,29 @@ usort($items, function($a, $b) use ($sort, $order, $showDirectoriesFirst) {
     
     <!-- Scripts -->
     <script>
-        // Loading Screen Logic
+        // Optimized JavaScript
         (function() {
-            const loadingScreen = document.getElementById('loadingScreen');
+            'use strict';
+            
+            // DOM elements cache
+            const els = {
+                loading: document.getElementById('loadingScreen'),
+                backToTop: document.getElementById('backToTop'),
+                searchInput: document.getElementById('searchInput'),
+                fileTable: document.getElementById('fileTable'),
+                noResults: document.getElementById('noResults')
+            };
+            
+            // Loading Screen
             const isNavigating = sessionStorage.getItem('isNavigating');
+            const loadTime = isNavigating === 'true' ? 300 : 500;
             
-            if (isNavigating === 'true') {
-                // Folder navigation - 0.5s loading
-                setTimeout(() => {
-                    loadingScreen.classList.add('fade-out');
-                    setTimeout(() => loadingScreen.style.display = 'none', 300);
-                }, 500);
-            } else {
-                // Initial load - 1s loading
-                setTimeout(() => {
-                    loadingScreen.classList.add('fade-out');
-                    setTimeout(() => loadingScreen.style.display = 'none', 300);
-                }, 1000);
-            }
+            setTimeout(() => {
+                els.loading.classList.add('fade-out');
+                setTimeout(() => els.loading.style.display = 'none', 300);
+            }, loadTime);
             
-            // Set navigation flag for links
+            // Navigation flag
             document.querySelectorAll('a').forEach(link => {
                 link.addEventListener('click', function(e) {
                     if (this.href && !this.target && !this.href.includes('#')) {
@@ -975,50 +1128,62 @@ usort($items, function($a, $b) use ($sort, $order, $showDirectoriesFirst) {
                 });
             });
             
-            // Clear flag on page unload
-            window.addEventListener('beforeunload', function() {
-                setTimeout(() => {
-                    sessionStorage.removeItem('isNavigating');
-                }, 100);
+            window.addEventListener('beforeunload', () => {
+                setTimeout(() => sessionStorage.removeItem('isNavigating'), 100);
             });
-        })();
-        
-        // Back to Top Button Logic
-        (function() {
-            const backToTop = document.getElementById('backToTop');
+            
+            // Back to Top
             let scrollTimeout;
+            const toggleBackToTop = () => {
+                els.backToTop.classList.toggle('show', window.scrollY > 300);
+            };
             
-            function toggleBackToTop() {
-                if (window.scrollY > 300) {
-                    backToTop.classList.add('show');
-                } else {
-                    backToTop.classList.remove('show');
-                }
-            }
-            
-            window.addEventListener('scroll', function() {
+            window.addEventListener('scroll', () => {
                 clearTimeout(scrollTimeout);
                 scrollTimeout = setTimeout(toggleBackToTop, 100);
+            }, { passive: true });
+            
+            els.backToTop.addEventListener('click', () => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             });
             
-            backToTop.addEventListener('click', function() {
-                window.scrollTo({
-                    top: 0,
-                    behavior: 'smooth'
-                });
-            });
-            
-            // Initial check
             toggleBackToTop();
-        })();
-        
-        // Prevent ad blockers from interfering
-        (function() {
-            // Create elements with non-suspicious class names
-            const elements = document.querySelectorAll('.spinner, .back-to-top');
-            elements.forEach(el => {
-                el.style.cssText = el.style.cssText + ';display:flex!important;';
-            });
+            
+            // Search functionality
+            if (els.searchInput && els.fileTable) {
+                const tbody = els.fileTable.querySelector('tbody');
+                const rows = Array.from(tbody.querySelectorAll('tr:not(.parent-row)'));
+                let searchTimeout;
+                
+                const performSearch = () => {
+                    const searchTerm = els.searchInput.value.toLowerCase().trim();
+                    let visibleCount = 0;
+                    
+                    rows.forEach(row => {
+                        const name = row.getAttribute('data-name');
+                        if (!name) return;
+                        
+                        const isVisible = !searchTerm || name.includes(searchTerm);
+                        row.classList.toggle('search-hidden', !isVisible);
+                        if (isVisible) visibleCount++;
+                    });
+                    
+                    els.noResults.classList.toggle('show', searchTerm && visibleCount === 0);
+                };
+                
+                els.searchInput.addEventListener('input', () => {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(performSearch, 150);
+                });
+                
+                // Clear search on Escape
+                els.searchInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        els.searchInput.value = '';
+                        performSearch();
+                    }
+                });
+            }
         })();
     </script>
 </body>
