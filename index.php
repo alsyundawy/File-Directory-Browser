@@ -118,16 +118,19 @@ function getCanonicalURL() {
 
 // Get file icon class based on extension
 function getFileIconClass($filename) {
-    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-    $iconMap = [
+    static $iconMap = [
         // Documents
         'pdf' => 'fa-file-pdf',
         'doc' => 'fa-file-word',
         'docx' => 'fa-file-word',
+        'docm' => 'fa-file-word',
         'xls' => 'fa-file-excel',
         'xlsx' => 'fa-file-excel',
+        'xlsm' => 'fa-file-excel',
+        'xlsb' => 'fa-file-excel',
         'ppt' => 'fa-file-powerpoint',
         'pptx' => 'fa-file-powerpoint',
+        'pptm' => 'fa-file-powerpoint',
         'txt' => 'fa-file-alt',
         'odt' => 'fa-file-alt',
         'ods' => 'fa-file-excel',
@@ -135,9 +138,15 @@ function getFileIconClass($filename) {
         'rtf' => 'fa-file-alt',
         'ps' => 'fa-file-alt',
         'epub' => 'fa-file-alt',
+        'pages' => 'fa-file-alt',
+        'numbers' => 'fa-file-excel',
+        'key' => 'fa-file-powerpoint',
+        'md' => 'fa-file-contract',
+        
         // Images
         'jpg' => 'fa-file-image',
         'jpeg' => 'fa-file-image',
+        'jfif' => 'fa-file-image',
         'png' => 'fa-file-image',
         'gif' => 'fa-file-image',
         'bmp' => 'fa-file-image',
@@ -146,7 +155,15 @@ function getFileIconClass($filename) {
         'tiff' => 'fa-file-image',
         'ico' => 'fa-file-image',
         'heic' => 'fa-file-image',
+        'heif' => 'fa-file-image',
         'avif' => 'fa-file-image',
+        'psd' => 'fa-file-image',
+        'ai' => 'fa-file-image',
+        'eps' => 'fa-file-image',
+        'raw' => 'fa-file-image',
+        'cr2' => 'fa-file-image',
+        'nef' => 'fa-file-image',
+        
         // Audio
         'mp3' => 'fa-file-audio',
         'wav' => 'fa-file-audio',
@@ -156,6 +173,10 @@ function getFileIconClass($filename) {
         'm4a' => 'fa-file-audio',
         'wma' => 'fa-file-audio',
         'midi' => 'fa-file-audio',
+        'opus' => 'fa-file-audio',
+        'aiff' => 'fa-file-audio',
+        'amr' => 'fa-file-audio',
+        
         // Video
         'mp4' => 'fa-file-video',
         'avi' => 'fa-file-video',
@@ -166,6 +187,10 @@ function getFileIconClass($filename) {
         'flv' => 'fa-file-video',
         'mpeg' => 'fa-file-video',
         '3gp' => 'fa-file-video',
+        'm4v' => 'fa-file-video',
+        'ogv' => 'fa-file-video',
+        'vob' => 'fa-file-video',
+        
         // Archives
         'zip' => 'fa-file-archive',
         'rar' => 'fa-file-archive',
@@ -175,56 +200,116 @@ function getFileIconClass($filename) {
         'bz2' => 'fa-file-archive',
         'xz' => 'fa-file-archive',
         'zst' => 'fa-file-archive',
-        'cab' => 'fa-file-archive',
-        'z' => 'fa-file-archive',
-        'tgz' => 'fa-file-archive',
-        'tar.gz' => 'fa-file-archive',
-        'tar.bz2' => 'fa-file-archive',
-        'tar.xz' => 'fa-file-archive',
-        'tar.zst' => 'fa-file-archive',
-        // Code
+        'lz' => 'fa-file-archive',
+        'lz4' => 'fa-file-archive',
+        'iso' => 'fa-file-archive',
+        'dmg' => 'fa-file-archive',
+        'pkg' => 'fa-file-archive',
+        'deb' => 'fa-file-archive',
+        'rpm' => 'fa-file-archive',
+        'apk' => 'fa-file-archive',
+        'msi' => 'fa-file-archive',
+        
+        // Code & Programming
         'js' => 'fa-file-code',
+        'jsx' => 'fa-file-code',
+        'ts' => 'fa-file-code',
+        'tsx' => 'fa-file-code',
         'css' => 'fa-file-code',
+        'scss' => 'fa-file-code',
+        'sass' => 'fa-file-code',
+        'less' => 'fa-file-code',
         'html' => 'fa-file-code',
+        'htm' => 'fa-file-code',
         'php' => 'fa-file-code',
         'py' => 'fa-file-code',
         'java' => 'fa-file-code',
+        'class' => 'fa-file-code',
+        'jar' => 'fa-file-code',
         'cpp' => 'fa-file-code',
         'c' => 'fa-file-code',
+        'h' => 'fa-file-code',
+        'hpp' => 'fa-file-code',
         'cs' => 'fa-file-code',
+        'go' => 'fa-file-code',
         'rb' => 'fa-file-code',
         'sh' => 'fa-file-code',
+        'bash' => 'fa-file-code',
+        'zsh' => 'fa-file-code',
+        'bat' => 'fa-file-code',
+        'cmd' => 'fa-file-code',
+        'ps1' => 'fa-file-code',
         'json' => 'fa-file-code',
         'yaml' => 'fa-file-code',
         'yml' => 'fa-file-code',
         'xml' => 'fa-file-code',
-        'ts' => 'fa-file-code',
-        'go' => 'fa-file-code',
-        'r' => 'fa-file-code',
-        'ini' => 'fa-file-code',
-        // Executables
-        'exe' => 'fa-file-code',
-        'msi' => 'fa-file-archive',
-        'apk' => 'fa-file-archive',
-        'dmg' => 'fa-file-archive',
-        'deb' => 'fa-file-archive',
-        'rpm' => 'fa-file-archive',
-        // Disk Images
-        'iso' => 'fa-file-image',
-        'img' => 'fa-file-image',
-        // Others
-        'csv' => 'fa-file-csv',
-        'md' => 'fa-file-alt',
-        'log' => 'fa-file-alt',
         'sql' => 'fa-file-code',
-        'db' => 'fa-file-code',
-        'sqlite' => 'fa-file-code',
-        'bak' => 'fa-file-archive',
-        'torrent' => 'fa-file-alt',
-        'vcf' => 'fa-file-alt',
-        'ics' => 'fa-file-alt'
+        'swift' => 'fa-file-code',
+        'kt' => 'fa-file-code',
+        'kts' => 'fa-file-code',
+        'dart' => 'fa-file-code',
+        'lua' => 'fa-file-code',
+        'pl' => 'fa-file-code',
+        'r' => 'fa-file-code',
+        'rs' => 'fa-file-code',
+        'groovy' => 'fa-file-code',
+        'ipynb' => 'fa-file-code',
+        
+        // Data Formats
+        'csv' => 'fa-file-csv',
+        'tsv' => 'fa-file-csv',
+        'parquet' => 'fa-file-csv',
+        'feather' => 'fa-file-csv',
+        'orc' => 'fa-file-csv',
+        'avro' => 'fa-file-csv',
+        
+        // Configurations
+        'env' => 'fa-file-cog',
+        'conf' => 'fa-file-cog',
+        'cfg' => 'fa-file-cog',
+        'ini' => 'fa-file-cog',
+        'toml' => 'fa-file-cog',
+        'properties' => 'fa-file-cog',
+        
+        // E-Books
+        'mobi' => 'fa-book',
+        'azw3' => 'fa-book',
+        'djvu' => 'fa-book',
+        
+        // Executables
+        'exe' => 'fa-cogs',
+        'dll' => 'fa-cogs',
+        'so' => 'fa-cogs',
+        'dylib' => 'fa-cogs',
+        
+        // Fonts
+        'ttf' => 'fa-font',
+        'otf' => 'fa-font',
+        'woff' => 'fa-font',
+        'woff2' => 'fa-font',
+        
+        // Miscellaneous
+        'log' => 'fa-file-alt',
+        'db' => 'fa-database',
+        'sqlite' => 'fa-database',
+        'sqlite3' => 'fa-database',
+        'bak' => 'fa-history',
+        'tmp' => 'fa-history',
+        'temp' => 'fa-history',
+        'torrent' => 'fa-magnet',
+        'vcf' => 'fa-address-card',
+        'ics' => 'fa-calendar',
+        'tex' => 'fa-file-alt',
+        'bib' => 'fa-file-alt',
+        'stl' => 'fa-cube',
+        'obj' => 'fa-cube',
+        'fbx' => 'fa-cube',
+        'step' => 'fa-cube',
+        'iges' => 'fa-cube',
     ];
-    return isset($iconMap[$ext]) ? $iconMap[$ext] : 'fa-file';
+    
+    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+    return $iconMap[$ext] ?? 'fa-file';
 }
 
 // Resolve symlink path properly
