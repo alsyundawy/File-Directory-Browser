@@ -12,7 +12,14 @@
 [![GitHub Contributors](https://img.shields.io/github/contributors/alsyundawy/File-Directory-Browser?style=social)](https://github.com/alsyundawy/File-Directory-Browser/graphs/contributors)
 
 ## Stargazers over time
-[![Stargazers over time](https://starchart.cc/alsyundawy/File-Directory-Browser.svg?variant=adaptive)](https://starchart.cc/alsyundawy/File-Directory-Browser)
+
+<a href="https://www.star-history.com/#alsyundawy/File-Directory-Browser&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=alsyundawy/File-Directory-Browser&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=alsyundawy/File-Directory-Browser&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=alsyundawy/File-Directory-Browser&type=Date" />
+ </picture>
+</a>
 
 File &amp; Directory Browser berbasis PHP dengan keamanan diperkuat: session cookie HttpOnly &amp; SameSite Strict, proteksi CSRF, sanitasi output, verifikasi hash (CRC32, MD5, SHA-1), header no-cache, serta UI responsif menggunakan Bootstrap 5 dan Font Awesome.
 
