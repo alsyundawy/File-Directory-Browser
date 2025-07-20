@@ -1035,7 +1035,7 @@ usort($items, function($a, $b) use ($sort, $order, $showDirectoriesFirst) {
     <!-- Loading Screen -->
     <div class="loading-screen" id="loadingScreen">
         <span class="spinner"></span>
-        <div class="loading-text">Loading...</div>
+        <div class="loading-text">LOADING ... DONT FORGET TO SAY "FUCK YOU RADIOSOFTWARE.ONLINE SERVER!</div>
     </div>
     
     <!-- Header -->
