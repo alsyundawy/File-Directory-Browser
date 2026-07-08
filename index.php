@@ -32,6 +32,17 @@
  *    - Endpoint hash tetap kompatibel dengan parameter lama ?md5=relative/path.
  *
  *  Changelog:
+ *    2026-07-08:
+ *      - Refactored directory listing loop to drastically optimize symlink check and avoid redundant expensive realpath calls.
+ *      - Hardened directory browsing by implementing isDisplayableFolder check to prevent access to hidden folders.
+ *      - Automatically write security protection (.htaccess) for the .cache hash directory to prevent direct public access.
+ *      - Redesigned interface with premium glassmorphic dark theme, glowing ambient background elements, and smooth micro-animations.
+ *      - Dynamically color-code file icons based on file type extensions for improved visual recognition.
+ *      - Refined active sorting states visually, displaying sort direction indicators in buttons.
+ *      - Added ob_start() to prevent "headers already sent" errors in all environments.
+ *      - Configured timezone default setting ($timezone) with initial Asia/Jakarta configuration.
+ *      - Dynamically apply CSP upgrade-insecure-requests header only when requesting via HTTPS.
+ *      - Implemented <noscript> style fallback to auto-hide loading screen when JS is disabled.
  *    2026-05-28:
  *      - Perbaikan path traversal dan symlink escape.
  *      - Perbaikan validasi folder/file sebelum listing atau hash check.
@@ -47,13 +58,15 @@
  *  Created By : HARRY DERTIN SUTISNA
  *  Contact    : Email: alsyundawy@gmail.com | Handle: @alsyundawy
  *  Created On : 26 June 2025
- *  Updated On : 28 May 2026
+ *  Updated On : 08 July 2026
  *  Timezone   : Asia/Jakarta
  *  License    : MIT License
  * ==============================================================================
  */
 
 declare(strict_types=1);
+
+ob_start();
 
 // =================== RUNTIME / VERSION GUARD ===================
 if (version_compare(PHP_VERSION, '8.0', '<')) {
@@ -84,25 +97,36 @@ $sizeDecimals           = 1;
 $browseDefault          = '';
 $allowExternalSymlinks  = false;
 $enableHashCache        = true;
-$hashCacheVersion       = '2026-05-28-v1';
+$hashCacheVersion       = '2026-07-08-v2';
+$timezone               = 'Asia/Jakarta';
+
+// Initialize timezone
+date_default_timezone_set($timezone);
 
 // Files to hide from listing and hash check.
 $filesToHide = [
     'robots.txt',
     'favicon.ico',
     'logo.png',
+    '.git',
+    '.github',
+    '.htaccess',
+    '.htpasswd',
+    '.user.ini',
+    '.cache',
     basename(__FILE__),
 ];
 
 // Extensions that should not be exposed by this public browser.
 $dangerousExtensions = [
-    'php', 'php3', 'php4', 'php5', 'phtml', 'phar',
+    'php', 'php3', 'php4', 'php5', 'php7', 'php8', 'phtml', 'phar', 'phps', 'phpt',
     'html', 'htm', 'shtml',
     'sh', 'bash', 'zsh', 'fish', 'ksh',
     'bat', 'cmd', 'ps1',
     'js', 'mjs', 'cjs', 'css',
     'pl', 'py', 'rb', 'cgi',
     'env', 'ini', 'conf', 'cfg', 'sql',
+    'htaccess', 'htpasswd',
 ];
 
 $baseDir = realpath(__DIR__);
@@ -298,8 +322,11 @@ function sendSecurityHeaders(string $nonce): void
         "font-src 'self' https://fonts.gstatic.com https://unpkg.com data:",
         "script-src 'self' 'nonce-{$nonce}' https://cdn.jsdelivr.net",
         "connect-src 'self'",
-        "upgrade-insecure-requests",
     ];
+
+    if (isHttpsRequest()) {
+        $csp[] = "upgrade-insecure-requests";
+    }
 
     header('Content-Security-Policy: ' . implode('; ', $csp));
 }
@@ -575,6 +602,23 @@ function isDisplayableFile(string $relativePath, bool $showHiddenFiles, array $f
     return !isDangerousExtension(basename($relativePath), $dangerousExtensions);
 }
 
+function isDisplayableFolder(string $relativePath, bool $showHiddenFiles, array $filesToHide): bool
+{
+    $relativePath = sanitizePath($relativePath);
+    if ($relativePath === '') {
+        return true;
+    }
+
+    $segments = explode('/', $relativePath);
+    foreach ($segments as $segment) {
+        if (isHiddenName($segment, $showHiddenFiles, $filesToHide)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 function createHashCacheDir(string $baseDir): string|false
 {
     $cacheDir = $baseDir . DIRECTORY_SEPARATOR . '.cache';
@@ -594,6 +638,13 @@ function createHashCacheDir(string $baseDir): string|false
     if (!is_writable($cacheDir)) {
         error_log('Hash cache disabled because .cache is not writable.');
         return false;
+    }
+
+    // Write htaccess to protect cache files from public exposure
+    $htaccessFile = $cacheDir . DIRECTORY_SEPARATOR . '.htaccess';
+    if (!is_file($htaccessFile)) {
+        $content = "<IfModule authz_core_module>\n    Require all denied\n</IfModule>\n<IfModule !authz_core_module>\n    Deny from all\n</IfModule>\n";
+        @file_put_contents($htaccessFile, $content);
     }
 
     return $cacheDir;
@@ -626,7 +677,12 @@ function readHashCache(string $cacheFile): array|null
 
 function writeHashCache(string $cacheFile, array $hashData): void
 {
-    $tmpFile = $cacheFile . '.' . bin2hex(random_bytes(8)) . '.tmp';
+    try {
+        $rand = bin2hex(random_bytes(8));
+    } catch (Throwable) {
+        $rand = uniqid('', true);
+    }
+    $tmpFile = $cacheFile . '.' . $rand . '.tmp';
     $json = json_encode($hashData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
     if ($json === false) {
@@ -659,7 +715,7 @@ function calculateHashes(string $fullFilePath, int $chunkSize): array|false
             return false;
         }
         if ($buffer === '') {
-            continue;
+            break;
         }
         hash_update($ctxCrc32, $buffer);
         hash_update($ctxMd5, $buffer);
@@ -687,7 +743,7 @@ function renderHashPage(string $fileName, int $fileSize, array $hashData, string
         <link rel="icon" type="image/x-icon" href="favicon.ico">
         <title>Hash Check for <?php echo e($fileName); ?></title>
         <meta name="description" content="Verify file integrity with CRC32, MD5, and SHA-1 hash algorithms">
-        <meta name="keywords" content="hash check, file verification, CRC32, MD5, SHA-1">
+        <meta name="keywords" content="hash check, file integrity, CRC32, MD5, SHA-1">
         <meta name="author" content="ALSYUNDAWY IT SOLUTION">
         <meta name="robots" content="noindex,nofollow">
         <link rel="canonical" href="<?php echo e(getCanonicalURL()); ?>">
@@ -697,43 +753,124 @@ function renderHashPage(string $fileName, int $fileSize, array $hashData, string
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css">
         <link rel="stylesheet" href="https://unpkg.com/@fortawesome/fontawesome-free@6.7.2/css/all.min.css">
         <style nonce="<?php echo e($nonce); ?>">
+            :root {
+                --bg-color: #080c14;
+                --card-bg: rgba(15, 23, 42, 0.65);
+                --card-border: rgba(255, 255, 255, 0.08);
+                --primary-glow: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+                --text-primary: #f8fafc;
+                --text-secondary: #94a3b8;
+                --border-color: rgba(255, 255, 255, 0.06);
+                --glass-blur: blur(16px);
+            }
             body {
                 font-family: 'Inter', sans-serif;
+                background-color: var(--bg-color);
+                background-image: 
+                    radial-gradient(at 0% 0%, rgba(79, 70, 229, 0.12) 0px, transparent 50%),
+                    radial-gradient(at 100% 100%, rgba(124, 58, 237, 0.12) 0px, transparent 50%);
+                background-attachment: fixed;
+                color: var(--text-primary);
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
                 -webkit-font-smoothing: antialiased;
                 -moz-osx-font-smoothing: grayscale;
             }
-            .table th { width: 150px; }
-            .hash-value { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; word-break: break-all; }
+            .card {
+                background: var(--card-bg);
+                backdrop-filter: var(--glass-blur);
+                -webkit-backdrop-filter: var(--glass-blur);
+                border: 1px solid var(--card-border);
+                border-radius: 12px;
+                padding: 2.5rem;
+                box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+                width: 100%;
+            }
+            .table {
+                color: var(--text-primary);
+                --bs-table-bg: transparent;
+                --bs-table-color: var(--text-primary);
+                margin-bottom: 0;
+            }
+            .table-striped > tbody > tr:nth-of-type(odd) > * {
+                background-color: rgba(255, 255, 255, 0.015);
+                --bs-table-accent-bg: rgba(255, 255, 255, 0.015);
+                color: var(--text-primary);
+            }
+            .table-striped > tbody > tr:nth-of-type(even) > * {
+                background-color: rgba(255, 255, 255, 0.035);
+                --bs-table-accent-bg: rgba(255, 255, 255, 0.035);
+                color: var(--text-primary);
+            }
+            .table td, .table th {
+                border-color: var(--border-color);
+                padding: 1.1rem;
+                vertical-align: middle;
+            }
+            .table th {
+                font-weight: 600;
+                color: var(--text-secondary);
+                width: 160px;
+            }
+            .hash-value { 
+                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; 
+                word-break: break-all; 
+                color: #60a5fa;
+                font-size: 0.95rem;
+                letter-spacing: 0.5px;
+            }
+            .btn-secondary {
+                background: rgba(255, 255, 255, 0.06);
+                border: 1px solid var(--card-border);
+                color: var(--text-primary);
+                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                font-weight: 500;
+                padding: 0.6rem 1.2rem;
+            }
+            .btn-secondary:hover {
+                background: rgba(255, 255, 255, 0.12);
+                border-color: var(--text-secondary);
+                color: white;
+                transform: translateY(-1px);
+            }
         </style>
     </head>
-    <body class="bg-white">
-        <div class="container py-5">
-            <h2 class="mb-4">Hash Check for <small><?php echo e($fileName); ?></small></h2>
-            <div class="table-responsive">
-                <table class="table table-bordered table-striped">
-                    <tbody>
-                        <tr>
-                            <th>File Size</th>
-                            <td><?php echo e($fileSizeHuman); ?> (<?php echo e(number_format($fileSize)); ?> bytes)</td>
-                        </tr>
-                        <tr>
-                            <th>CRC32</th>
-                            <td class="hash-value"><?php echo e($hashData['crc32']); ?></td>
-                        </tr>
-                        <tr>
-                            <th>MD5</th>
-                            <td class="hash-value"><?php echo e($hashData['md5']); ?></td>
-                        </tr>
-                        <tr>
-                            <th>SHA-1</th>
-                            <td class="hash-value"><?php echo e($hashData['sha1']); ?></td>
-                        </tr>
-                    </tbody>
-                </table>
+    <body>
+        <div class="container py-5 d-flex justify-content-center">
+            <div class="col-lg-8">
+                <div class="card">
+                    <h2 class="mb-4 text-center">Hash Check</h2>
+                    <h5 class="text-muted mb-4 text-center"><?php echo e($fileName); ?></h5>
+                    <div class="table-responsive rounded border border-secondary border-opacity-25 mb-4">
+                        <table class="table table-striped">
+                            <tbody>
+                                <tr>
+                                    <th>File Size</th>
+                                    <td><?php echo e($fileSizeHuman); ?> (<?php echo e(number_format($fileSize)); ?> bytes)</td>
+                                </tr>
+                                <tr>
+                                    <th>CRC32</th>
+                                    <td class="hash-value"><?php echo e($hashData['crc32']); ?></td>
+                                </tr>
+                                <tr>
+                                    <th>MD5</th>
+                                    <td class="hash-value"><?php echo e($hashData['md5']); ?></td>
+                                </tr>
+                                <tr>
+                                    <th>SHA-1</th>
+                                    <td class="hash-value"><?php echo e($hashData['sha1']); ?></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-center">
+                        <a href="javascript:history.back()" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i> Back to Listing
+                        </a>
+                    </div>
+                </div>
             </div>
-            <a href="javascript:history.back()" class="btn btn-secondary mt-3">
-                <i class="fas fa-arrow-left"></i> Back
-            </a>
         </div>
         <script nonce="<?php echo e($nonce); ?>" src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
     </body>
@@ -747,6 +884,11 @@ function listDirectory(string $path, bool $showFolders = true, bool $showHidden 
 
     $items = [];
     $path = sanitizePath($path);
+
+    if (!isDisplayableFolder($path, $showHidden, $filesToHide)) {
+        return $items;
+    }
+
     $fullPath = resolveExistingPath($path, $baseDir, $allowExternalSymlinks);
 
     if ($fullPath === false || !is_dir($fullPath) || !is_readable($fullPath)) {
@@ -767,10 +909,20 @@ function listDirectory(string $path, bool $showFolders = true, bool $showHidden 
             continue;
         }
 
-        $relativeItemPath = trim($path . '/' . $file, '/');
-        $itemRealPath = resolveExistingPath($relativeItemPath, $baseDir, $allowExternalSymlinks);
-        if ($itemRealPath === false) {
-            continue;
+        $linkPath = $fullPath . DIRECTORY_SEPARATOR . $file;
+        $isSymlink = is_link($linkPath);
+
+        // Optimization: Resolve realpath only if the file is a symbolic link
+        if ($isSymlink) {
+            $itemRealPath = realpath($linkPath);
+            if ($itemRealPath === false) {
+                continue;
+            }
+            if (!$allowExternalSymlinks && !isPathInsideBase($itemRealPath, $baseDir)) {
+                continue;
+            }
+        } else {
+            $itemRealPath = $linkPath;
         }
 
         $isDir = is_dir($itemRealPath);
@@ -782,8 +934,7 @@ function listDirectory(string $path, bool $showFolders = true, bool $showHidden 
             continue;
         }
 
-        $linkPath = pathToFilesystem($baseDir, $relativeItemPath);
-        $isSymlink = is_link($linkPath);
+        $relativeItemPath = trim($path . '/' . $file, '/');
         $itemSize = $isDir ? 0 : (int) (@filesize($itemRealPath) ?: 0);
         $itemTime = (int) (@filemtime($itemRealPath) ?: 0);
         $stat = @stat($itemRealPath);
@@ -886,10 +1037,12 @@ $currentDir = sanitizePath($browseDefault);
 
 if ($browseDirectories && isset($_GET['folder'])) {
     $requested = sanitizePath((string) $_GET['folder']);
-    $realPath = resolveExistingPath($requested, $baseDir, $allowExternalSymlinks);
+    if (isDisplayableFolder($requested, $showHiddenFiles, $filesToHide)) {
+        $realPath = resolveExistingPath($requested, $baseDir, $allowExternalSymlinks);
 
-    if ($realPath !== false && is_dir($realPath) && is_readable($realPath)) {
-        $currentDir = $requested;
+        if ($realPath !== false && is_dir($realPath) && is_readable($realPath)) {
+            $currentDir = $requested;
+        }
     }
 }
 
@@ -919,8 +1072,8 @@ usort($items, function (array $a, array $b) use ($sort, $order, $showDirectories
     }
 
     $result = match ($sort) {
-        'modified' => $a['time'] <=> $b['time'],
-        'size'     => $a['size'] <=> $b['size'],
+        'modified' => ($a['time'] <=> $b['time']) ?: strcasecmp((string) $a['name'], (string) $b['name']),
+        'size'     => ($a['size'] <=> $b['size']) ?: strcasecmp((string) $a['name'], (string) $b['name']),
         default    => strcasecmp((string) $a['name'], (string) $b['name']),
     };
 
@@ -963,39 +1116,91 @@ $alignmentClass = match ($alignment) {
     <link rel="stylesheet" href="https://unpkg.com/@fortawesome/fontawesome-free@6.7.2/css/all.min.css">
     <style nonce="<?php echo e($nonce); ?>">
         :root {
-            --primary-color: #2c3e50;
-            --secondary-color: #ffffff;
-            --border-color: #dee2e6;
-            --hover-color: #f8f9fa;
-            --text-color: #212529;
+            --bg-color: #080c14;
+            --card-bg: rgba(15, 23, 42, 0.65);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --primary-glow: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            --accent-color: #6366f1;
+            --accent-hover: #818cf8;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-color: rgba(255, 255, 255, 0.06);
+            --hover-bg: rgba(255, 255, 255, 0.04);
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+            --glass-blur: blur(16px);
         }
 
         * {
             box-sizing: border-box;
         }
 
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-color);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-weight: 400;
-            color: var(--text-color);
-            background-color: var(--secondary-color);
+            color: var(--text-primary);
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(79, 70, 229, 0.12) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(124, 58, 237, 0.12) 0px, transparent 50%);
+            background-attachment: fixed;
             line-height: 1.6;
             margin: 0;
             padding: 0;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             text-rendering: optimizeLegibility;
+            min-height: 100vh;
+        }
+
+        .bg-glow {
+            position: fixed;
+            width: 350px;
+            height: 350px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: -1;
+            filter: blur(120px);
+            opacity: 0.12;
+        }
+        .bg-glow-1 {
+            top: -100px;
+            left: -100px;
+            background: #4f46e5;
+        }
+        .bg-glow-2 {
+            bottom: -100px;
+            right: -100px;
+            background: #7c3aed;
         }
 
         a {
             text-decoration: none;
             color: inherit;
-            transition: opacity 0.2s ease;
+            transition: all 0.2s ease;
         }
 
         a:hover {
             text-decoration: none;
-            opacity: 0.8;
+            color: var(--accent-hover);
         }
 
         /* Loading Screen */
@@ -1005,7 +1210,7 @@ $alignmentClass = match ($alignment) {
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(255, 255, 255, 0.95);
+            background: var(--bg-color);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -1024,7 +1229,7 @@ $alignmentClass = match ($alignment) {
             height: 48px;
             border-radius: 50%;
             display: inline-block;
-            border-top: 4px solid #2c3e50;
+            border-top: 4px solid var(--accent-color);
             border-right: 4px solid transparent;
             animation: rotation 1s linear infinite;
             position: relative;
@@ -1038,7 +1243,7 @@ $alignmentClass = match ($alignment) {
             width: 48px;
             height: 48px;
             border-radius: 50%;
-            border-bottom: 4px solid #FF3D00;
+            border-bottom: 4px solid #8b5cf6;
             border-left: 4px solid transparent;
         }
 
@@ -1049,44 +1254,58 @@ $alignmentClass = match ($alignment) {
 
         .loading-text {
             margin-top: 20px;
-            color: var(--primary-color);
+            color: var(--text-secondary);
             font-weight: 500;
+            letter-spacing: 2px;
+            font-size: 0.85rem;
         }
 
         /* Header Styles */
         header {
-            background: white;
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border-bottom: 1px solid var(--card-border);
             padding: 2rem 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 2rem;
+            margin-bottom: 2.5rem;
+            box-shadow: var(--shadow-sm);
         }
 
         header img {
-            max-height: 120px;
+            max-height: 90px;
             width: auto;
             cursor: pointer;
             transition: transform 0.3s ease;
             image-rendering: -webkit-optimize-contrast;
             image-rendering: crisp-edges;
+            filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.4));
         }
 
         header img:hover {
-            transform: scale(1.05);
+            transform: scale(1.03);
         }
 
         header h1 {
-            font-size: 1.75rem;
-            font-weight: 600;
+            font-size: 1.65rem;
+            font-weight: 700;
             margin-top: 1rem;
             margin-bottom: 0.5rem;
             letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #f8fafc 0%, #cbd5e1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        header p {
+            color: var(--text-secondary) !important;
+            font-size: 0.95rem;
         }
 
         /* Container Styles */
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 0 15px;
+            padding: 0 20px;
         }
 
         /* Page Header */
@@ -1096,21 +1315,30 @@ $alignmentClass = match ($alignment) {
             align-items: center;
             flex-wrap: wrap;
             margin-bottom: 2rem;
-            gap: 1rem;
+            gap: 1.5rem;
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-md);
         }
 
         .page-title h2 {
-            font-size: 1.5rem;
+            font-size: 1.35rem;
             font-weight: 600;
             margin: 0;
-            word-break: break-word;
+            word-break: break-all;
             letter-spacing: -0.3px;
+            color: var(--text-primary);
         }
 
         .page-subtitle {
-            color: #6c757d;
-            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
             margin-top: 0.5rem;
+            margin-bottom: 0;
         }
 
         /* Search Input */
@@ -1118,7 +1346,8 @@ $alignmentClass = match ($alignment) {
             position: relative;
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.75rem;
+            flex-wrap: wrap;
         }
 
         .search-input {
@@ -1128,25 +1357,34 @@ $alignmentClass = match ($alignment) {
         }
 
         .search-input input {
-            padding: 0.375rem 2.5rem 0.375rem 0.75rem;
-            border: 1px solid #ced4da;
-            border-radius: 0.25rem;
-            font-size: 0.875rem;
-            width: 200px;
-            transition: all 0.2s ease;
+            padding: 0.5rem 2.5rem 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            width: 220px;
+            color: var(--text-primary);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .search-input input:focus {
             outline: none;
-            border-color: #80bdff;
-            box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+            width: 280px;
         }
 
         .search-input .search-icon {
             position: absolute;
-            right: 0.75rem;
-            color: #6c757d;
+            right: 0.85rem;
+            color: var(--text-muted);
             pointer-events: none;
+            transition: color 0.2s ease;
+        }
+
+        .search-input input:focus + .search-icon {
+            color: var(--accent-color);
         }
 
         /* Sort Buttons */
@@ -1157,72 +1395,170 @@ $alignmentClass = match ($alignment) {
         }
 
         .sort-buttons .btn {
-            font-size: 0.875rem;
-            padding: 0.375rem 0.75rem;
+            font-size: 0.8rem;
+            padding: 0.5rem 0.85rem;
             white-space: nowrap;
             font-weight: 500;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .sort-buttons .btn-outline-secondary {
+            color: var(--text-primary);
+            border-color: var(--border-color);
+            background-color: rgba(255, 255, 255, 0.02);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .sort-buttons .btn-outline-secondary:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--text-secondary);
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .sort-buttons .btn.active {
+            background: var(--primary-glow) !important;
+            border-color: transparent !important;
+            color: white !important;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+            transform: translateY(-1px);
         }
 
         /* Table Styles */
         .table-container {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            background: var(--card-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            box-shadow: var(--shadow-lg);
             overflow: hidden;
+            padding: 0.75rem;
         }
 
         .table {
             margin-bottom: 0;
-            font-size: 0.9rem;
+            font-size: 0.92rem;
+            color: var(--text-primary);
+            --bs-table-bg: transparent;
+            --bs-table-hover-bg: transparent;
+            border-collapse: separate;
+            border-spacing: 0 6px;
         }
 
         .table thead th {
-            background-color: var(--primary-color);
-            color: white;
-            font-weight: 500;
-            border: none;
-            padding: 0.75rem;
+            background-color: transparent !important;
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 1.25rem;
             white-space: nowrap;
-            letter-spacing: 0.3px;
         }
 
         .table tbody tr {
-            transition: background-color 0.2s ease;
+            background-color: rgba(255, 255, 255, 0.015);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .table tbody tr:hover {
-            background-color: var(--hover-color);
+            background-color: rgba(255, 255, 255, 0.055);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        }
+
+        .table tbody tr.parent-row {
+            background-color: rgba(255, 255, 255, 0.005);
+        }
+
+        .table tbody tr.parent-row:hover {
+            background-color: rgba(255, 255, 255, 0.03);
+            transform: none;
+            box-shadow: none;
         }
 
         .table tbody tr.search-hidden {
-            display: none;
+            display: none !important;
         }
 
         .table td {
-            padding: 0.75rem;
+            padding: 0.9rem 1.25rem;
             vertical-align: middle;
-            border-color: var(--border-color);
+            border: none;
+            color: var(--text-primary);
+        }
+
+        .table tbody tr td:first-child {
+            border-top-left-radius: 8px;
+            border-bottom-left-radius: 8px;
+        }
+
+        .table tbody tr td:last-child {
+            border-top-right-radius: 8px;
+            border-bottom-right-radius: 8px;
         }
 
         /* Column Widths */
         .col-name { width: auto; }
-        .col-date { width: 140px; white-space: nowrap; }
-        .col-size { width: 80px; text-align: right; }
-        .col-hash { width: 80px; text-align: center; }
+        .col-date { width: 160px; white-space: nowrap; }
+        .col-size { width: 100px; text-align: right; }
+        .col-hash { width: 100px; text-align: center; }
 
         /* Icon Styles */
         .file-icon {
-            margin-right: 0.5rem;
-            width: 16px;
+            margin-right: 0.65rem;
+            width: 18px;
             text-align: center;
-            font-size: 1rem;
+            font-size: 1.05rem;
+            transition: transform 0.2s ease;
         }
 
+        .table tr:hover .file-icon {
+            transform: scale(1.15);
+        }
+
+        /* Vibrant File Type Icon Colors */
+        .file-icon.fa-folder { color: #f59e0b; }
+        .file-icon.fa-file-pdf { color: #ef4444; }
+        .file-icon.fa-file-word { color: #3b82f6; }
+        .file-icon.fa-file-excel { color: #10b981; }
+        .file-icon.fa-file-powerpoint { color: #f97316; }
+        .file-icon.fa-file-archive { color: #8b5cf6; }
+        .file-icon.fa-file-image { color: #06b6d4; }
+        .file-icon.fa-file-video { color: #ec4899; }
+        .file-icon.fa-file-audio { color: #14b8a6; }
+        .file-icon.fa-file-code { color: #a855f7; }
+        .file-icon.fa-file-alt { color: #94a3b8; }
+        .file-icon.fa-file-cog { color: #64748b; }
+        .file-icon.fa-cogs { color: #f43f5e; }
+        .file-icon.fa-database { color: #0ea5e9; }
+        .file-icon.fa-font { color: #f43f5e; }
+
         .symlink-badge {
-            font-size: 0.7rem;
-            margin-left: 0.25rem;
-            vertical-align: super;
-            color: #6c757d;
+            font-size: 0.75rem;
+            margin-left: 0.4rem;
+            color: var(--accent-hover);
+        }
+
+        /* Hash Check Button styling */
+        .btn-outline-info {
+            color: var(--accent-hover);
+            border-color: rgba(99, 102, 241, 0.3);
+            background: rgba(99, 102, 241, 0.05);
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+        .btn-outline-info:hover {
+            color: white;
+            background: var(--accent-color);
+            border-color: transparent;
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
+            transform: scale(1.05);
         }
 
         /* Back to Top Button */
@@ -1230,9 +1566,9 @@ $alignmentClass = match ($alignment) {
             position: fixed;
             bottom: 30px;
             right: 30px;
-            width: 40px;
-            height: 40px;
-            background: var(--primary-color);
+            width: 45px;
+            height: 45px;
+            background: var(--primary-glow);
             color: white;
             border-radius: 50%;
             display: flex;
@@ -1241,9 +1577,10 @@ $alignmentClass = match ($alignment) {
             cursor: pointer;
             opacity: 0;
             visibility: hidden;
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 1000;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .back-to-top.show {
@@ -1252,23 +1589,40 @@ $alignmentClass = match ($alignment) {
         }
 
         .back-to-top:hover {
-            background: #1a252f;
-            transform: translateY(-3px);
+            background: var(--primary-glow);
+            transform: translateY(-4px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
         }
 
         /* Footer */
         footer {
             text-align: center;
-            padding: 2rem 0;
-            margin-top: 4rem;
+            padding: 2.5rem 0;
+            margin-top: 5rem;
+            border-top: 1px solid var(--card-border);
+            background: rgba(15, 23, 42, 0.4);
+        }
+
+        footer p {
+            font-size: 0.9rem;
+            color: var(--text-muted) !important;
+        }
+
+        footer a {
+            color: var(--accent-color);
+            font-weight: 500;
+        }
+
+        footer a:hover {
+            color: var(--accent-hover);
         }
 
         /* No results */
         .no-results {
             display: none;
             text-align: center;
-            padding: 3rem;
-            color: #6c757d;
+            padding: 4rem 2rem;
+            color: var(--text-secondary);
         }
 
         .no-results.show {
@@ -1276,86 +1630,69 @@ $alignmentClass = match ($alignment) {
         }
 
         /* Responsive Design */
-        @media (max-width: 768px) {
-            header h1 {
-                font-size: 1.5rem;
-            }
-
+        @media (max-width: 991px) {
             .page-header {
                 flex-direction: column;
-                align-items: flex-start;
+                align-items: stretch;
             }
-
             .search-container {
                 width: 100%;
                 flex-direction: column;
                 align-items: stretch;
+                gap: 1rem;
             }
-
             .search-input {
                 width: 100%;
-                margin-bottom: 0.5rem;
             }
-
             .search-input input {
-                width: 100%;
+                width: 100% !important;
             }
-
             .sort-buttons {
                 width: 100%;
             }
-
             .sort-buttons .btn {
                 flex: 1;
-                font-size: 0.75rem;
-                padding: 0.25rem 0.5rem;
-            }
-
-            .table {
-                font-size: 0.8rem;
-            }
-
-            .table td, .table th {
-                padding: 0.5rem;
-            }
-
-            .col-date {
-                width: 100px;
-                font-size: 0.75rem;
-            }
-
-            .col-size {
-                width: 60px;
-                font-size: 0.75rem;
-            }
-
-            .col-hash {
-                width: 50px;
-            }
-
-            .back-to-top {
-                bottom: 20px;
-                right: 20px;
-                width: 35px;
-                height: 35px;
+                justify-content: center;
             }
         }
 
-        @media (max-width: 480px) {
-            header img {
-                max-height: 80px;
+        @media (max-width: 768px) {
+            header {
+                padding: 1.5rem 0;
+                margin-bottom: 1.5rem;
             }
-
-            .page-title h2 {
-                font-size: 1.2rem;
+            header h1 {
+                font-size: 1.4rem;
             }
+            .table {
+                font-size: 0.82rem;
+            }
+            .table td, .table th {
+                padding: 0.8rem 0.65rem;
+            }
+            .col-date {
+                width: 120px;
+            }
+            .col-size {
+                width: 75px;
+            }
+            .back-to-top {
+                bottom: 20px;
+                right: 20px;
+                width: 40px;
+                height: 40px;
+            }
+        }
 
+        @media (max-width: 576px) {
             .col-date {
                 display: none;
             }
-
-            .hide-mobile {
-                display: none !important;
+            header img {
+                max-height: 65px;
+            }
+            .page-title h2 {
+                font-size: 1.15rem;
             }
         }
 
@@ -1364,9 +1701,8 @@ $alignmentClass = match ($alignment) {
             .container {
                 max-width: 1320px;
             }
-
             .table {
-                font-size: 1rem;
+                font-size: 0.95rem;
             }
         }
 
@@ -1393,12 +1729,21 @@ $alignmentClass = match ($alignment) {
             font-weight: 900 !important;
         }
     </style>
+    <noscript>
+        <style>
+            .loading-screen { display: none !important; }
+        </style>
+    </noscript>
 </head>
 <body>
+    <!-- Glow Background Effects -->
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+
     <!-- Loading Screen -->
     <div class="loading-screen" id="loadingScreen" aria-live="polite" aria-label="Loading">
         <span class="spinner"></span>
-        <div class="loading-text">LOADING ...</div>
+        <div class="loading-text">LOADING DIRECTORY...</div>
     </div>
 
     <!-- Header -->
@@ -1408,7 +1753,7 @@ $alignmentClass = match ($alignment) {
                 <img src="logo.png" alt="File Browser Logo" loading="lazy">
             </a>
             <h1>File &amp; Directory Browser</h1>
-            <p class="text-muted mb-0">Menampilkan daftar file dan direktori yang tersedia.</p>
+            <p class="mb-0">Menampilkan daftar file dan direktori yang tersedia secara aman.</p>
         </div>
     </header>
 
@@ -1432,16 +1777,16 @@ $alignmentClass = match ($alignment) {
                 </div>
                 <div class="sort-buttons">
                     <a href="<?php echo e(queryUrl(['folder' => $currentDir, 'sort' => 'name', 'order' => ($sort === 'name' && $order === 'asc') ? 'desc' : 'asc'])); ?>"
-                       class="btn btn-outline-secondary btn-sm">
-                        <i class="fas fa-sort-alpha-down"></i> Name
+                       class="btn btn-outline-secondary btn-sm<?php echo $sort === 'name' ? ' active' : ''; ?>">
+                        <i class="fas <?php echo $sort === 'name' ? ($order === 'asc' ? 'fa-sort-alpha-down' : 'fa-sort-alpha-up') : 'fa-sort-alpha-down'; ?>"></i> Name
                     </a>
                     <a href="<?php echo e(queryUrl(['folder' => $currentDir, 'sort' => 'modified', 'order' => ($sort === 'modified' && $order === 'asc') ? 'desc' : 'asc'])); ?>"
-                       class="btn btn-outline-secondary btn-sm">
-                        <i class="fas fa-calendar-alt"></i> Date
+                       class="btn btn-outline-secondary btn-sm<?php echo $sort === 'modified' ? ' active' : ''; ?>">
+                        <i class="fas <?php echo $sort === 'modified' ? ($order === 'asc' ? 'fa-sort-amount-down' : 'fa-sort-amount-up') : 'fa-calendar-alt'; ?>"></i> Date
                     </a>
                     <a href="<?php echo e(queryUrl(['folder' => $currentDir, 'sort' => 'size', 'order' => ($sort === 'size' && $order === 'asc') ? 'desc' : 'asc'])); ?>"
-                       class="btn btn-outline-secondary btn-sm">
-                        <i class="fas fa-weight-hanging"></i> Size
+                       class="btn btn-outline-secondary btn-sm<?php echo $sort === 'size' ? ' active' : ''; ?>">
+                        <i class="fas <?php echo $sort === 'size' ? ($order === 'asc' ? 'fa-sort-numeric-down' : 'fa-sort-numeric-up') : 'fa-weight-hanging'; ?>"></i> Size
                     </a>
                 </div>
             </div>
@@ -1449,7 +1794,7 @@ $alignmentClass = match ($alignment) {
 
         <div class="table-container">
             <div class="table-responsive">
-                <table class="table table-hover" id="fileTable">
+                <table class="table" id="fileTable">
                     <thead>
                         <tr>
                             <th class="col-name">Name</th>
@@ -1518,17 +1863,17 @@ $alignmentClass = match ($alignment) {
 
                         <?php if (empty($items)): ?>
                         <tr>
-                            <td colspan="4" class="text-center text-muted py-4">
-                                <i class="fas fa-folder-open fa-3x mb-3"></i>
-                                <p>No files or directories found</p>
+                            <td colspan="4" class="text-center text-muted py-5">
+                                <i class="fas fa-folder-open fa-3x mb-3 text-secondary opacity-50"></i>
+                                <p class="mb-0">No files or directories found</p>
                             </td>
                         </tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
                 <div class="no-results" id="noResults">
-                    <i class="fas fa-search fa-3x mb-3"></i>
-                    <p>No files matching your search</p>
+                    <i class="fas fa-search fa-3x mb-3 text-secondary opacity-50"></i>
+                    <p class="mb-0">No files matching your search</p>
                 </div>
             </div>
         </div>
@@ -1537,7 +1882,7 @@ $alignmentClass = match ($alignment) {
     <!-- Footer -->
     <footer>
         <div class="container">
-            <p class="text-muted mb-0">
+            <p class="mb-0">
                 <a href="https://alsyundawy.com" target="_blank" rel="noopener noreferrer">
                     ALSYUNDAWY IT SOLUTION
                 </a>
@@ -1553,7 +1898,6 @@ $alignmentClass = match ($alignment) {
 
     <!-- Scripts -->
     <script nonce="<?php echo e($nonce); ?>">
-        // Optimized JavaScript
         (function() {
             'use strict';
 
@@ -1568,7 +1912,7 @@ $alignmentClass = match ($alignment) {
 
             // Loading Screen
             const isNavigating = sessionStorage.getItem('isNavigating');
-            const loadTime = isNavigating === 'true' ? 300 : 500;
+            const loadTime = isNavigating === 'true' ? 250 : 400;
 
             if (els.loading) {
                 setTimeout(() => {
@@ -1620,6 +1964,7 @@ $alignmentClass = match ($alignment) {
             if (els.searchInput && els.fileTable && els.noResults) {
                 const tbody = els.fileTable.querySelector('tbody');
                 const rows = Array.from(tbody.querySelectorAll('tr:not(.parent-row)'));
+                const parentRow = tbody.querySelector('.parent-row');
                 let searchTimeout;
 
                 const performSearch = () => {
@@ -1638,6 +1983,11 @@ $alignmentClass = match ($alignment) {
                             visibleCount++;
                         }
                     });
+
+                    // Hide Parent Directory row during search
+                    if (parentRow) {
+                        parentRow.classList.toggle('search-hidden', searchTerm !== '');
+                    }
 
                     els.noResults.classList.toggle('show', searchTerm !== '' && visibleCount === 0);
                 };
@@ -1659,3 +2009,5 @@ $alignmentClass = match ($alignment) {
     </script>
 </body>
 </html>
+<?php
+ob_end_flush();
