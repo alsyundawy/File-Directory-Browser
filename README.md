@@ -27,13 +27,13 @@
 
 ---
 
-** New
+**New**
 
 <img width="1100" height="748" alt="image" src="https://github.com/user-attachments/assets/ec10a8d2-662d-4aac-a1a1-14a6178b86bb" />
 
 
 
-** Old
+**Old**
 
 ![Premium Glassmorphic Dark UI](https://github.com/user-attachments/assets/fdebf249-6bf7-4d49-806b-6399432c9d9d)
 
