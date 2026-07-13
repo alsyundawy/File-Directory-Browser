@@ -11,28 +11,25 @@
 [![GitHub Forks](https://img.shields.io/github/forks/alsyundawy/File-Directory-Browser?style=social)](https://github.com/alsyundawy/File-Directory-Browser/network/members)
 [![GitHub Contributors](https://img.shields.io/github/contributors/alsyundawy/File-Directory-Browser?style=social)](https://github.com/alsyundawy/File-Directory-Browser/graphs/contributors)
 
-
 ---
 
-### Bahasa Indonesia
+## Bahasa Indonesia
 
 **File & Directory Browser** adalah script PHP tunggal (*single-file PHP script*) yang aman, responsif, dan sangat ringan untuk menampilkan daftar file serta direktori. Dilengkapi dengan fitur pengurutan instan, pencarian real-time tanpa reload halaman, verifikasi hash file (CRC32, MD5, SHA-1) menggunakan sistem cache lokal, perlindungan ketat dari eksploitasi path traversal, proteksi folder berbasis password dengan bcrypt hashing, serta antarmuka modern bertema *glassmorphic* berbasis Bootstrap 5 dan Font Awesome 6.
 
-### English
+## English
 
 **File & Directory Browser** is a security-hardened, highly responsive, and lightweight single-file PHP script designed to display file and directory lists. It features real-time search without reloading, instant sorting, file hash verification (CRC32, MD5, SHA-1) with a local caching mechanism, strict protection against path traversal attacks, bcrypt-secured password-protected folders, and a premium glassmorphic user interface built using Bootstrap 5 and Font Awesome 6.
 
 ---
 
-### User Interface
+## User Interface
 
-**New**
+### New
 
-<img width="1100" height="748" alt="image" src="https://github.com/user-attachments/assets/ec10a8d2-662d-4aac-a1a1-14a6178b86bb" />
+![New UI](https://github.com/user-attachments/assets/ec10a8d2-662d-4aac-a1a1-14a6178b86bb)
 
-
-
-**Old**
+### Old
 
 ![Premium Glassmorphic Dark UI](https://github.com/user-attachments/assets/fdebf249-6bf7-4d49-806b-6399432c9d9d)
 
