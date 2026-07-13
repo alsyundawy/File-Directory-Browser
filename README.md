@@ -236,6 +236,24 @@ $protectedFolders = [
 
 ---
 
-## Lisensi / License
+## Donation
 
-Didistribusikan di bawah **MIT License**. Lihat file [LICENSE](LICENSE) untuk informasi lebih lanjut.
+Anda bebas untuk mengubah, mendistribusikan script ini untuk keperluan anda.
+
+If you find this project helpful and would like to support it, please consider donating via <https://www.paypal.me/alsyundawy>. Thank you for your support!
+
+Jika Anda merasa terbantu dan ingin mendukung proyek ini, pertimbangkan untuk berdonasi melalui <https://www.paypal.me/alsyundawy>. Terima kasih atas dukungannya!
+
+Jika Anda merasa terbantu dan ingin mendukung proyek ini, pertimbangkan untuk berdonasi melalui QRIS. Terima kasih atas dukungannya!
+
+![QRIS Donation](https://github.com/user-attachments/assets/a0126f28-6dde-43da-ba14-d7c9a27de0df)
+
+## License
+
+MIT License — Copyright © 2026 **HARRY DS ALSYUNDAWY** — ALSYUNDAWY IT SOLUTION
+
+> **Note:** Please retain credit to the original author (HARRY DS ALSYUNDAWY — ALSYUNDAWY IT SOLUTION) if you use or modify this script. Attribution is appreciated but not legally required under the MIT License.
+
+---
+
+![Alt](https://repobeats.axiom.co/api/embed/78ddb5f1a231029b742cc467a74bcce400941d0f.svg "Repobeats analytics image")
