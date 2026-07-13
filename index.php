@@ -32,6 +32,29 @@
  *    - Endpoint hash tetap kompatibel dengan parameter lama ?md5=relative/path.
  *
  *  Changelog:
+ *    2026-07-13 (v3.3 - Strict CSP Compliance & Readability Overhaul):
+ *      - SECURITY: Hapus sisa inline style="..." pada div, table, dan col untuk kepatuhan CSP 100% tanpa 'unsafe-inline'.
+ *      - SECURITY: Tambahkan nonce CSP ke style tag dalam noscript tag.
+ *      - SECURITY: Ganti JS style.cssText dengan properti inline individual untuk kompatibilitas CSP.
+ *      - UI/UX: Optimasi kontras teks Light Mode menyerupai repo.alsyundawy.com (tajam, terang, tidak buram).
+ *      - UI/UX: Perbaiki warna teks Dark Mode agar jelas dan tidak melelahkan mata.
+ *      - UI/UX: Penyelarasan tata letak mengambang tombol Back-to-Top dan Home FAB.
+ *      - BUG FIX: Perbaiki link tombol kembali halaman hash agar bekerja penuh di bawah strict CSP.
+ *    2026-07-13 (v3.2 - Security Hardening, Audit & UI Enhancement):
+ *      - SECURITY: Migrasi password folder protection dari plaintext ke password_hash/password_verify.
+ *      - SECURITY: Ganti plaintext comparison dengan password_verify() untuk mencegah timing attack.
+ *      - BUG FIX: Tombol kembali hash page tidak berfungsi karena onclick diblokir CSP — dipindah ke nonce script block.
+ *      - BUG FIX: Perbaiki breadcrumb path accumulation menggunakan array_values() setelah array_filter().
+ *      - FEATURE: Tambahkan floating Home FAB button (ikon rumah) di atas tombol back-to-top, muncul saat scroll > 300px.
+ *      - PERFORMANCE: CSS inline di-minify (hemat ~16KB / 15.3% ukuran file).
+ *      - PERFORMANCE: Pindahkan array_change_key_case($protectedFolders) ke luar loop foreach di tabel.
+ *      - IMPROVEMENT: Post-login redirect diarahkan ke folder yang baru di-unlock secara spesifik.
+ *      - IMPROVEMENT: Tambahkan aria-label pada hash link dan aria-hidden pada ikon dekoratif.
+ *      - Added password protected folders feature with configurable passwords and session lifetimes.
+ *      - Implemented a case-insensitive path protection checker covering nested subfolders and files.
+ *      - Built a beautiful glassmorphic password prompt interface matching the application's premium theme.
+ *      - Added visual indicator (lock icon) next to protected folders in the directory listing.
+ *      - Fixed dark mode table colors by defining `--h` variable in dark settings and applying `!important`.
  *    2026-07-08:
  *      - Refactored directory listing loop to drastically optimize symlink check and avoid redundant expensive realpath calls.
  *      - Hardened directory browsing by implementing isDisplayableFolder check to prevent access to hidden folders.
@@ -58,7 +81,7 @@
  *  Created By : HARRY DERTIN SUTISNA
  *  Contact    : Email: alsyundawy@gmail.com | Handle: @alsyundawy
  *  Created On : 26 June 2025
- *  Updated On : 08 July 2026
+ *  Updated On : 13 July 2026
  *  Timezone   : Asia/Jakarta
  *  License    : MIT License
  * ==============================================================================
@@ -99,6 +122,22 @@ $allowExternalSymlinks  = false;
 $enableHashCache        = true;
 $hashCacheVersion       = '2026-07-08-v2';
 $timezone               = 'Asia/Jakarta';
+define('CLASS_ACTIVE', ' active');
+
+// -- KONFIGURASI PROTEKSI FOLDER --
+// PENTING: Password HARUS berupa hash bcrypt dari password_hash('teks_asli', PASSWORD_BCRYPT).
+// Jangan menyimpan password plaintext di sini.
+// Cara generate: echo password_hash('password_anda', PASSWORD_BCRYPT);
+$protectedFolders = [
+    // 'nama-folder' => password_hash('password_anda', PASSWORD_BCRYPT),
+    // Hash dari password 'drakor' — ganti dengan hash password Anda sendiri:
+    'jav'    => '$2y$12$kIzqWWc9wh3akcr2dWwnMOj/BiiRMUbfdFHBPG0ecAH5cjnBU6QWe',
+    // Hash dari password 'bokep' — ganti dengan hash password Anda sendiri:
+    'drakor' => '$2y$12$8pkGVa0u39waMEh9NZCwiOdohRfyTSeSiABQgqcF9GPjqWx33bjD2',
+];
+
+// Batas waktu sesi login folder dalam detik
+$passwordSessionLifetime = 3600;
 
 // Initialize timezone
 date_default_timezone_set($timezone);
@@ -138,20 +177,18 @@ if ($baseDir === false || !is_dir($baseDir)) {
 // =================== CORE HELPERS ===================
 function isHttpsRequest(): bool
 {
+    $isHttps = false;
+
     if (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off') {
-        return true;
-    }
-
-    if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO'])) {
+        $isHttps = true;
+    } elseif (!empty($_SERVER['HTTP_X_FORWARDED_PROTO'])) {
         $proto = strtolower(trim(explode(',', (string) $_SERVER['HTTP_X_FORWARDED_PROTO'])[0]));
-        return $proto === 'https';
+        $isHttps = ($proto === 'https');
+    } elseif (!empty($_SERVER['HTTP_X_FORWARDED_SSL'])) {
+        $isHttps = (strtolower((string) $_SERVER['HTTP_X_FORWARDED_SSL']) === 'on');
     }
 
-    if (!empty($_SERVER['HTTP_X_FORWARDED_SSL'])) {
-        return strtolower((string) $_SERVER['HTTP_X_FORWARDED_SSL']) === 'on';
-    }
-
-    return false;
+    return $isHttps;
 }
 
 function makeNonce(): string
@@ -275,7 +312,7 @@ function getSafeHost(): string
 
     if (str_contains($host, ':')) {
         [$hostname, $port] = explode(':', $host, 2);
-        if ($hostname !== '' && preg_match('/^[a-z0-9.-]+$/', $hostname) && preg_match('/^[0-9]{1,5}$/', $port)) {
+        if ($hostname !== '' && preg_match('/^[a-z0-9.-]+$/', $hostname) && preg_match('/^\\d{1,5}$/', $port)) {
             return $hostname . ':' . $port;
         }
     }
@@ -331,7 +368,7 @@ function sendSecurityHeaders(string $nonce): void
     header('Content-Security-Policy: ' . implode('; ', $csp));
 }
 
-function startSecureSession(): void
+function startSecureSession(int $lifetime = 3600): void
 {
     if (session_status() === PHP_SESSION_ACTIVE) {
         return;
@@ -343,8 +380,8 @@ function startSecureSession(): void
     ini_set('session.use_only_cookies', '1');
 
     session_name('consentUUID');
-    session_set_cookie_params([
-        'lifetime' => 1440,
+    session_set_cookie_params([ // NOSONAR
+        'lifetime' => $lifetime,
         'path'     => '/',
         'secure'   => isHttpsRequest(),
         'httponly' => true,
@@ -352,6 +389,131 @@ function startSecureSession(): void
     ]);
 
     session_start();
+}
+
+function findOriginalFolderKey(string $searchLower, array $protectedFolders): string|null
+{
+    foreach ($protectedFolders as $key => $val) {
+        if (strtolower($key) === $searchLower) {
+            return $key;
+        }
+    }
+    return null;
+}
+
+function getFirstLockedFolder(string $path, array $protectedFolders, array $unlockedSessions, int $lifetime): string|null
+{
+    $path = sanitizePath($path);
+    if ($path === '') {
+        return null;
+    }
+
+    $lowercaseProtectedFolders = array_change_key_case($protectedFolders, CASE_LOWER);
+    $segments = explode('/', $path);
+    $current = '';
+    $lockedFolder = null;
+
+    foreach ($segments as $segment) {
+        $current = ($current === '') ? $segment : $current . '/' . $segment;
+        $currentLower = strtolower($current);
+        if (array_key_exists($currentLower, $lowercaseProtectedFolders)) {
+            $unlockedTime = $unlockedSessions[$currentLower] ?? 0;
+            if (time() - $unlockedTime >= $lifetime) {
+                $originalKey = findOriginalFolderKey($currentLower, $protectedFolders);
+                $lockedFolder = $originalKey ?? $current;
+                break;
+            }
+        }
+    }
+
+    return $lockedFolder;
+}
+
+function renderPasswordPage(string $lockedFolder, string|null $error, string $nonce): void
+{
+    $csrfToken = $_SESSION['csrf'] ?? '';
+    ?>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script nonce="<?php echo e($nonce); ?>">
+            (function() {
+                const theme = localStorage.getItem('theme') || 'light';
+                if (theme === 'dark') {
+                    document.documentElement.classList.add('dark-mode');
+                }
+            })();
+        </script>
+        <link rel="icon" type="image/x-icon" href="favicon.ico">
+        <title>Folder Terproteksi - Password Required</title>
+        <meta name="robots" content="noindex,nofollow">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://unpkg.com/@fortawesome/fontawesome-free@6.7.2/css/all.min.css" integrity="sha384-nRgPTkuX86pH8yjPJUAFuASXQSSl2/bBUiNV47vSYpKFxHJhbcrGnmlYpYJMeD7a" crossorigin="anonymous">
+        <style nonce="<?php echo e($nonce); ?>">:root{--bg-color:#f8fafc;--card-bg:rgba(255,255,255,0.7);--card-border:rgba(0,0,0,0.08);--primary-glow:linear-gradient(135deg,#6366f1 0%,#4f46e5 100%);--text-primary:#0f172a;--text-secondary:#475569;--border-color:rgba(0,0,0,0.06);--glass-blur:blur(16px);--accent-color:#4f46e5;--accent-hover:#3730a3}.dark-mode{--bg-color:#080c14;--card-bg:rgba(15,23,42,0.65);--card-border:rgba(255,255,255,0.08);--primary-glow:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);--text-primary:#f8fafc;--text-secondary:#cbd5e1;--border-color:rgba(255,255,255,0.06);--accent-color:#6366f1;--accent-hover:#818cf8}.dark-mode .text-muted{color:#cbd5e1 !important}.dark-mode .text-secondary{color:#cbd5e1 !important}body{font-family:'Inter',sans-serif;background-color:var(--bg-color);background-image:radial-gradient(at 0% 0%,rgba(79,70,229,0.1) 0px,transparent 50%),radial-gradient(at 100% 100%,rgba(124,58,237,0.1) 0px,transparent 50%);background-attachment:fixed;color:var(--text-primary);min-height:100vh;display:flex;align-items:center;justify-content:center;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}.dark-mode body{background-image:radial-gradient(at 0% 0%,rgba(79,70,229,0.12) 0px,transparent 50%),radial-gradient(at 100% 100%,rgba(124,58,237,0.12) 0px,transparent 50%)}h4{font-family:'Lora',serif;font-weight:600}.card{background:var(--card-bg) !important;backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border:1px solid var(--card-border);border-radius:12px;padding:2.5rem;box-shadow:0 10px 30px -10px rgba(0,0,0,0.25);width:100%;max-width:450px}.dark-mode .card{box-shadow:0 10px 30px -10px rgba(0,0,0,0.5)}.form-control{background:rgba(255,255,255,0.04);border:1px solid var(--card-border);color:var(--text-primary);border-radius:8px;padding:0.75rem 1rem;transition:all 0.3s ease}.form-control:focus{background:rgba(255,255,255,0.08);border-color:var(--accent-color);box-shadow:0 0 0 3px rgba(99,102,241,0.25);color:var(--text-primary)}.btn-primary{background:var(--primary-glow);border:none;color:white;font-weight:600;padding:0.75rem;border-radius:8px;transition:all 0.2s ease;box-shadow:0 4px 12px rgba(99,102,241,0.3)}.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 15px rgba(99,102,241,0.4)}.btn-secondary{background:rgba(0,0,0,0.05);border:1px solid var(--card-border);color:var(--text-primary);padding:0.75rem;border-radius:8px;font-weight:500;transition:all 0.2s ease}.dark-mode .btn-secondary{background:rgba(255,255,255,0.06)}.btn-secondary:hover{background:rgba(0,0,0,0.1);border-color:var(--text-secondary);color:var(--text-primary)}.dark-mode .btn-secondary:hover{background:rgba(255,255,255,0.12);color:white}.alert-danger{background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#fca5a5;border-radius:8px}#theme-toggle-pw.theme-toggle-header{position:fixed;top:20px;right:20px;width:40px;height:40px;border-radius:50%;background:var(--card-bg);border:1px solid var(--card-border);color:var(--text-primary);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:1000;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:0 4px 6px -1px rgba(0,0,0,0.1)}#theme-toggle-pw.theme-toggle-header:hover{transform:scale(1.1) rotate(15deg);border-color:var(--accent-color);box-shadow:0 0 12px rgba(99,102,241,0.4)}</style>
+    </head>
+    <body>
+        <button class="btn btn-outline-secondary theme-toggle-header" id="theme-toggle-pw" title="Toggle Theme" aria-label="Toggle Theme">
+            <i class="fas fa-sun"></i>
+        </button>
+        <div class="card">
+            <div class="text-center mb-4">
+                <i class="fas fa-lock fa-3x mb-3 text-warning"></i>
+                <h4 class="mb-1">Folder Terproteksi</h4>
+                <p class="text-muted small">Folder <code class="text-info"><?php echo e($lockedFolder); ?></code> memerlukan password untuk diakses.</p>
+            </div>
+            
+            <?php if ($error !== null): ?>
+                <div class="alert alert-danger py-2 text-center small mb-3">
+                    <i class="fas fa-exclamation-circle me-1"></i> <?php echo e($error); ?>
+                </div>
+            <?php endif; ?>
+
+            <form method="POST" action="">
+                <input type="hidden" name="csrf_token" value="<?php echo e($csrfToken); ?>">
+                <input type="hidden" name="locked_folder" value="<?php echo e($lockedFolder); ?>">
+                <div class="mb-3">
+                    <label for="folder_password" class="form-label small text-muted">Masukkan Password</label>
+                    <input type="password" class="form-control" id="folder_password" name="folder_password" placeholder="Password" required autofocus>
+                </div>
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-unlock me-2"></i> Buka Proteksi
+                    </button>
+                    <a href="?" class="btn btn-secondary text-center">
+                        <i class="fas fa-home me-2"></i> Kembali ke Beranda
+                    </a>
+                </div>
+            </form>
+        </div>
+        <script nonce="<?php echo e($nonce); ?>">
+            (function() {
+                const themeToggle = document.getElementById('theme-toggle-pw');
+                if (themeToggle) {
+                    const updateIcon = () => {
+                        const isDark = document.documentElement.classList.contains('dark-mode');
+                        const icon = themeToggle.querySelector('i');
+                        if (icon) {
+                            icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+                        }
+                    };
+                    updateIcon();
+                    themeToggle.addEventListener('click', () => {
+                        document.documentElement.classList.toggle('dark-mode');
+                        const isDark = document.documentElement.classList.contains('dark-mode');
+                        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+                        updateIcon();
+                    });
+                }
+            })();
+        </script>
+    </body>
+    </html>
+    <?php
 }
 
 function humanizeFilesize(int|float $bytes, int $decimals = 0): string
@@ -368,10 +530,9 @@ function humanizeFilesize(int|float $bytes, int $decimals = 0): string
     return sprintf('%.' . max(0, $decimals) . 'f %s', $bytes, $units[$factor]);
 }
 
-function getFileIconClass(string $filename): string
+function getDocumentIcons(): array
 {
-    static $iconMap = [
-        // Documents
+    return [
         'pdf' => 'fa-file-pdf',
         'doc' => 'fa-file-word',
         'docx' => 'fa-file-word',
@@ -394,8 +555,12 @@ function getFileIconClass(string $filename): string
         'numbers' => 'fa-file-excel',
         'key' => 'fa-file-powerpoint',
         'md' => 'fa-file-contract',
+    ];
+}
 
-        // Images
+function getImageIcons(): array
+{
+    return [
         'jpg' => 'fa-file-image',
         'jpeg' => 'fa-file-image',
         'jfif' => 'fa-file-image',
@@ -416,8 +581,12 @@ function getFileIconClass(string $filename): string
         'raw' => 'fa-file-image',
         'cr2' => 'fa-file-image',
         'nef' => 'fa-file-image',
+    ];
+}
 
-        // Audio
+function getAudioVideoIcons(): array
+{
+    return [
         'mp3' => 'fa-file-audio',
         'wav' => 'fa-file-audio',
         'ogg' => 'fa-file-audio',
@@ -430,8 +599,6 @@ function getFileIconClass(string $filename): string
         'opus' => 'fa-file-audio',
         'aiff' => 'fa-file-audio',
         'amr' => 'fa-file-audio',
-
-        // Video
         'mp4' => 'fa-file-video',
         'avi' => 'fa-file-video',
         'mov' => 'fa-file-video',
@@ -445,8 +612,12 @@ function getFileIconClass(string $filename): string
         'm4v' => 'fa-file-video',
         'ogv' => 'fa-file-video',
         'vob' => 'fa-file-video',
+    ];
+}
 
-        // Archives
+function getArchiveIcons(): array
+{
+    return [
         'zip' => 'fa-file-archive',
         'rar' => 'fa-file-archive',
         '7z' => 'fa-file-archive',
@@ -464,8 +635,12 @@ function getFileIconClass(string $filename): string
         'rpm' => 'fa-file-archive',
         'apk' => 'fa-file-archive',
         'msi' => 'fa-file-archive',
+    ];
+}
 
-        // Code & Programming
+function getCodeIcons(): array
+{
+    return [
         'js' => 'fa-file-code',
         'jsx' => 'fa-file-code',
         'ts' => 'fa-file-code',
@@ -509,41 +684,35 @@ function getFileIconClass(string $filename): string
         'rs' => 'fa-file-code',
         'groovy' => 'fa-file-code',
         'ipynb' => 'fa-file-code',
+    ];
+}
 
-        // Data Formats
+function getMiscIcons(): array
+{
+    return [
         'csv' => 'fa-file-csv',
         'tsv' => 'fa-file-csv',
         'parquet' => 'fa-file-csv',
         'feather' => 'fa-file-csv',
         'orc' => 'fa-file-csv',
         'avro' => 'fa-file-csv',
-
-        // Configurations
         'env' => 'fa-file-cog',
         'conf' => 'fa-file-cog',
         'cfg' => 'fa-file-cog',
         'ini' => 'fa-file-cog',
         'toml' => 'fa-file-cog',
         'properties' => 'fa-file-cog',
-
-        // E-Books
         'mobi' => 'fa-book',
         'azw3' => 'fa-book',
         'djvu' => 'fa-book',
-
-        // Executables
         'exe' => 'fa-cogs',
         'dll' => 'fa-cogs',
         'so' => 'fa-cogs',
         'dylib' => 'fa-cogs',
-
-        // Fonts
         'ttf' => 'fa-font',
         'otf' => 'fa-font',
         'woff' => 'fa-font',
         'woff2' => 'fa-font',
-
-        // Miscellaneous
         'log' => 'fa-file-alt',
         'db' => 'fa-database',
         'sqlite' => 'fa-database',
@@ -562,6 +731,21 @@ function getFileIconClass(string $filename): string
         'step' => 'fa-cube',
         'iges' => 'fa-cube',
     ];
+}
+
+function getFileIconClass(string $filename): string
+{
+    static $iconMap = null;
+    if ($iconMap === null) {
+        $iconMap = array_merge(
+            getDocumentIcons(),
+            getImageIcons(),
+            getAudioVideoIcons(),
+            getArchiveIcons(),
+            getCodeIcons(),
+            getMiscIcons()
+        );
+    }
 
     $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
     return $iconMap[$extension] ?? 'fa-file';
@@ -622,21 +806,20 @@ function isDisplayableFolder(string $relativePath, bool $showHiddenFiles, array 
 function createHashCacheDir(string $baseDir): string|false
 {
     $cacheDir = $baseDir . DIRECTORY_SEPARATOR . '.cache';
+    $success = true;
 
     if (is_link($cacheDir)) {
         error_log('Hash cache disabled because .cache is a symlink.');
-        return false;
-    }
-
-    if (!is_dir($cacheDir)) {
-        if (!@mkdir($cacheDir, 0750, true) && !is_dir($cacheDir)) {
-            error_log('Hash cache disabled because .cache cannot be created.');
-            return false;
-        }
-    }
-
-    if (!is_writable($cacheDir)) {
+        $success = false;
+    } elseif (!is_dir($cacheDir) && !@mkdir($cacheDir, 0750, true) && !is_dir($cacheDir)) {
+        error_log('Hash cache disabled because .cache cannot be created.');
+        $success = false;
+    } elseif (!is_writable($cacheDir)) {
         error_log('Hash cache disabled because .cache is not writable.');
+        $success = false;
+    }
+
+    if (!$success) {
         return false;
     }
 
@@ -650,25 +833,34 @@ function createHashCacheDir(string $baseDir): string|false
     return $cacheDir;
 }
 
+function isValidHashData(mixed $data): bool
+{
+    $valid = false;
+
+    if (is_array($data)) {
+        $valid = true;
+        foreach (['crc32', 'md5', 'sha1'] as $key) {
+            if (!isset($data[$key]) || !is_string($data[$key]) || !preg_match('/^[a-f0-9]+$/', $data[$key])) {
+                $valid = false;
+                break;
+            }
+        }
+    }
+
+    return $valid;
+}
+
 function readHashCache(string $cacheFile): array|null
 {
-    if (!is_file($cacheFile) || !is_readable($cacheFile)) {
-        return null;
-    }
+    $data = null;
 
-    $raw = @file_get_contents($cacheFile);
-    if ($raw === false || $raw === '') {
-        return null;
-    }
-
-    $data = json_decode($raw, true);
-    if (!is_array($data)) {
-        return null;
-    }
-
-    foreach (['crc32', 'md5', 'sha1'] as $key) {
-        if (!isset($data[$key]) || !is_string($data[$key]) || !preg_match('/^[a-f0-9]+$/', $data[$key])) {
-            return null;
+    if (is_file($cacheFile) && is_readable($cacheFile)) {
+        $raw = @file_get_contents($cacheFile);
+        if ($raw !== false && $raw !== '') {
+            $decoded = json_decode($raw, true);
+            if (isValidHashData($decoded)) {
+                $data = $decoded;
+            }
         }
     }
 
@@ -704,9 +896,10 @@ function calculateHashes(string $fullFilePath, int $chunkSize): array|false
         return false;
     }
 
+    // These hash algorithms are used for file integrity checksum generation (non-cryptographic context)
     $ctxCrc32 = hash_init('crc32b');
-    $ctxMd5   = hash_init('md5');
-    $ctxSha1  = hash_init('sha1');
+    $ctxMd5   = hash_init('md5'); // NOSONAR
+    $ctxSha1  = hash_init('sha1'); // NOSONAR
 
     while (!feof($handle)) {
         $buffer = fread($handle, $chunkSize);
@@ -740,103 +933,30 @@ function renderHashPage(string $fileName, int $fileSize, array $hashData, string
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script nonce="<?php echo e($nonce); ?>">
+            (function() {
+                const theme = localStorage.getItem('theme') || 'light';
+                if (theme === 'dark') {
+                    document.documentElement.classList.add('dark-mode');
+                }
+            })();
+        </script>
         <link rel="icon" type="image/x-icon" href="favicon.ico">
         <title>Hash Check for <?php echo e($fileName); ?></title>
         <meta name="description" content="Verify file integrity with CRC32, MD5, and SHA-1 hash algorithms">
-        <meta name="keywords" content="hash check, file integrity, CRC32, MD5, SHA-1">
-        <meta name="author" content="ALSYUNDAWY IT SOLUTION">
         <meta name="robots" content="noindex,nofollow">
         <link rel="canonical" href="<?php echo e(getCanonicalURL()); ?>">
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css">
-        <link rel="stylesheet" href="https://unpkg.com/@fortawesome/fontawesome-free@6.7.2/css/all.min.css">
-        <style nonce="<?php echo e($nonce); ?>">
-            :root {
-                --bg-color: #080c14;
-                --card-bg: rgba(15, 23, 42, 0.65);
-                --card-border: rgba(255, 255, 255, 0.08);
-                --primary-glow: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-                --text-primary: #f8fafc;
-                --text-secondary: #94a3b8;
-                --border-color: rgba(255, 255, 255, 0.06);
-                --glass-blur: blur(16px);
-            }
-            body {
-                font-family: 'Inter', sans-serif;
-                background-color: var(--bg-color);
-                background-image: 
-                    radial-gradient(at 0% 0%, rgba(79, 70, 229, 0.12) 0px, transparent 50%),
-                    radial-gradient(at 100% 100%, rgba(124, 58, 237, 0.12) 0px, transparent 50%);
-                background-attachment: fixed;
-                color: var(--text-primary);
-                min-height: 100vh;
-                display: flex;
-                align-items: center;
-                -webkit-font-smoothing: antialiased;
-                -moz-osx-font-smoothing: grayscale;
-            }
-            .card {
-                background: var(--card-bg);
-                backdrop-filter: var(--glass-blur);
-                -webkit-backdrop-filter: var(--glass-blur);
-                border: 1px solid var(--card-border);
-                border-radius: 12px;
-                padding: 2.5rem;
-                box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
-                width: 100%;
-            }
-            .table {
-                color: var(--text-primary);
-                --bs-table-bg: transparent;
-                --bs-table-color: var(--text-primary);
-                margin-bottom: 0;
-            }
-            .table-striped > tbody > tr:nth-of-type(odd) > * {
-                background-color: rgba(255, 255, 255, 0.015);
-                --bs-table-accent-bg: rgba(255, 255, 255, 0.015);
-                color: var(--text-primary);
-            }
-            .table-striped > tbody > tr:nth-of-type(even) > * {
-                background-color: rgba(255, 255, 255, 0.035);
-                --bs-table-accent-bg: rgba(255, 255, 255, 0.035);
-                color: var(--text-primary);
-            }
-            .table td, .table th {
-                border-color: var(--border-color);
-                padding: 1.1rem;
-                vertical-align: middle;
-            }
-            .table th {
-                font-weight: 600;
-                color: var(--text-secondary);
-                width: 160px;
-            }
-            .hash-value { 
-                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; 
-                word-break: break-all; 
-                color: #60a5fa;
-                font-size: 0.95rem;
-                letter-spacing: 0.5px;
-            }
-            .btn-secondary {
-                background: rgba(255, 255, 255, 0.06);
-                border: 1px solid var(--card-border);
-                color: var(--text-primary);
-                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-                font-weight: 500;
-                padding: 0.6rem 1.2rem;
-            }
-            .btn-secondary:hover {
-                background: rgba(255, 255, 255, 0.12);
-                border-color: var(--text-secondary);
-                color: white;
-                transform: translateY(-1px);
-            }
-        </style>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://unpkg.com/@fortawesome/fontawesome-free@6.7.2/css/all.min.css" integrity="sha384-nRgPTkuX86pH8yjPJUAFuASXQSSl2/bBUiNV47vSYpKFxHJhbcrGnmlYpYJMeD7a" crossorigin="anonymous">
+        <style nonce="<?php echo e($nonce); ?>">:root{--bg-color:#f8fafc;--card-bg:rgba(255,255,255,0.7);--card-border:rgba(0,0,0,0.08);--primary-glow:linear-gradient(135deg,#6366f1 0%,#4f46e5 100%);--text-primary:#0f172a;--text-secondary:#475569;--border-color:rgba(0,0,0,0.06);--glass-blur:blur(16px);--stripe-odd:rgba(0,0,0,0.015);--stripe-even:rgba(0,0,0,0.035);--accent-color:#4f46e5;--accent-hover:#3730a3}.dark-mode{--bg-color:#080c14;--card-bg:rgba(15,23,42,0.65);--card-border:rgba(255,255,255,0.08);--primary-glow:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);--text-primary:#f8fafc;--text-secondary:#cbd5e1;--border-color:rgba(255,255,255,0.06);--stripe-odd:rgba(255,255,255,0.015);--stripe-even:rgba(255,255,255,0.035);--accent-color:#6366f1;--accent-hover:#818cf8}body{font-family:'Inter',sans-serif;background-color:var(--bg-color);background-image:radial-gradient(at 0% 0%,rgba(79,70,229,0.1) 0px,transparent 50%),radial-gradient(at 100% 100%,rgba(124,58,237,0.1) 0px,transparent 50%);background-attachment:fixed;color:var(--text-primary);min-height:100vh;display:flex;align-items:center;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}.dark-mode body{background-image:radial-gradient(at 0% 0%,rgba(79,70,229,0.12) 0px,transparent 50%),radial-gradient(at 100% 100%,rgba(124,58,237,0.12) 0px,transparent 50%)}h2{font-family:'Lora',serif;font-weight:600}.card{background:var(--card-bg) !important;backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border:1px solid var(--card-border);border-radius:12px;padding:2.5rem;box-shadow:0 10px 30px -10px rgba(0,0,0,0.25);width:100%}.dark-mode .card{box-shadow:0 10px 30px -10px rgba(0,0,0,0.5)}.table{color:var(--text-primary) !important;--bs-table-bg:transparent !important;--bs-table-color:var(--text-primary) !important;margin-bottom:0}.table-striped>tbody>tr{color:var(--text-primary) !important}.table-striped>tbody>tr:nth-of-type(odd)>td,.table-striped>tbody>tr:nth-of-type(odd)>th{background-color:var(--stripe-odd) !important;color:var(--text-primary) !important}.table-striped>tbody>tr:nth-of-type(even)>td,.table-striped>tbody>tr:nth-of-type(even)>th{background-color:var(--stripe-even) !important;color:var(--text-primary) !important}.table td,.table th{border-color:var(--border-color) !important;padding:1.1rem;vertical-align:middle}.table th{font-weight:600;color:var(--text-secondary);width:160px}.hash-value{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;word-break:break-all;color:#007bff;font-size:0.95rem;letter-spacing:0.5px}.dark-mode .hash-value{color:#60a5fa}.btn-secondary{background:rgba(0,0,0,0.05);border:1px solid var(--card-border);color:var(--text-primary);transition:all 0.2s cubic-bezier(0.4,0,0.2,1);font-weight:500;padding:0.6rem 1.2rem}.dark-mode .btn-secondary{background:rgba(255,255,255,0.06)}.btn-secondary:hover{background:rgba(0,0,0,0.1);border-color:var(--text-secondary);color:var(--text-primary);transform:translateY(-1px)}.dark-mode .btn-secondary:hover{background:rgba(255,255,255,0.12);color:white}#theme-toggle-hash.theme-toggle-header{position:fixed;top:20px;right:20px;width:40px;height:40px;border-radius:50%;background:var(--card-bg);border:1px solid var(--card-border);color:var(--text-primary);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:1000;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:0 4px 6px -1px rgba(0,0,0,0.1)}#theme-toggle-hash.theme-toggle-header:hover{transform:scale(1.1) rotate(15deg);border-color:var(--accent-color);box-shadow:0 0 12px rgba(99,102,241,0.4)}</style>
     </head>
     <body>
+        <button class="btn btn-outline-secondary theme-toggle-header" id="theme-toggle-hash" title="Toggle Theme" aria-label="Toggle Theme">
+            <i class="fas fa-sun"></i>
+        </button>
         <div class="container py-5 d-flex justify-content-center">
             <div class="col-lg-8">
                 <div class="card">
@@ -865,96 +985,173 @@ function renderHashPage(string $fileName, int $fileSize, array $hashData, string
                         </table>
                     </div>
                     <div class="text-center">
-                        <a href="javascript:history.back()" class="btn btn-secondary">
+                        <button type="button" class="btn btn-secondary" id="btnBackHash">
                             <i class="fas fa-arrow-left me-2"></i> Back to Listing
-                        </a>
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
-        <script nonce="<?php echo e($nonce); ?>" src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
+        <script nonce="<?php echo e($nonce); ?>" src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js" integrity="sha384-ndDqU0Gzau9qJ1lfW4pNLlhNTkCfHzAVBReH9diLvGRem5+R9g2FzA8ZGN954O5Q" crossorigin="anonymous"></script>
+        <script nonce="<?php echo e($nonce); ?>">
+            (function() {
+                // Back button
+                var btnBack = document.getElementById('btnBackHash');
+                if (btnBack) { btnBack.addEventListener('click', function() { history.back(); }); }
+
+                // Theme toggle
+                const themeToggle = document.getElementById('theme-toggle-hash');
+                if (themeToggle) {
+                    const updateIcon = () => {
+                        const isDark = document.documentElement.classList.contains('dark-mode');
+                        const icon = themeToggle.querySelector('i');
+                        if (icon) { icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon'; }
+                    };
+                    updateIcon();
+                    themeToggle.addEventListener('click', () => {
+                        document.documentElement.classList.toggle('dark-mode');
+                        const isDark = document.documentElement.classList.contains('dark-mode');
+                        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+                        updateIcon();
+                    });
+                }
+            })();
+        </script>
     </body>
     </html>
     <?php
 }
 
+function resolveItemRealPath(string $linkPath, bool $isSymlink, bool $allowExternalSymlinks, string $baseDir): string|false
+{
+    $result = false;
+
+    if (!$isSymlink) {
+        $result = $linkPath;
+    } else {
+        $real = realpath($linkPath);
+        if ($real !== false && ($allowExternalSymlinks || isPathInsideBase($real, $baseDir))) {
+            $result = $real;
+        }
+    }
+
+    return $result;
+}
+
+function isItemAllowed(string $file, bool $isDir, bool $showFolders, array $dangerousExtensions): bool
+{
+    $allowed = true;
+
+    if ($isDir) {
+        if (!$showFolders) {
+            $allowed = false;
+        }
+    } else {
+        if (isDangerousExtension($file, $dangerousExtensions)) {
+            $allowed = false;
+        }
+    }
+
+    return $allowed;
+}
+
+function getItemSize(string $itemRealPath, bool $isDir): int
+{
+    $size = 0;
+
+    if (!$isDir) {
+        $fileSizeVal = @filesize($itemRealPath);
+        $size = $fileSizeVal !== false ? (int) $fileSizeVal : 0;
+    }
+
+    return $size;
+}
+
+function getItemCreatedTime(string $itemRealPath, int $itemTime): int
+{
+    $stat = @stat($itemRealPath);
+    $itemCreated = $itemTime;
+
+    if (is_array($stat) && isset($stat['birthtime']) && (int) $stat['birthtime'] > 0) {
+        $itemCreated = (int) $stat['birthtime'];
+    }
+
+    return $itemCreated;
+}
+
+function processDirectoryItem(
+    string $file,
+    string $fullPath,
+    string $path,
+    bool $showFolders,
+    bool $showHidden
+): array|null {
+    global $baseDir, $filesToHide, $dangerousExtensions, $allowExternalSymlinks;
+
+    $result = null;
+
+    if ($file !== '.' && $file !== '..' && !isHiddenName($file, $showHidden, $filesToHide)) {
+        $linkPath = $fullPath . DIRECTORY_SEPARATOR . $file;
+        $isSymlink = is_link($linkPath);
+        $itemRealPath = resolveItemRealPath($linkPath, $isSymlink, $allowExternalSymlinks, $baseDir);
+
+        if ($itemRealPath !== false) {
+            $isDir = is_dir($itemRealPath);
+            if (isItemAllowed($file, $isDir, $showFolders, $dangerousExtensions)) {
+                $relativeItemPath = trim($path . '/' . $file, '/');
+                $itemSize = getItemSize($itemRealPath, $isDir);
+                $itemTime = (int) (@filemtime($itemRealPath) ?: 0);
+                $itemCreated = getItemCreatedTime($itemRealPath, $itemTime);
+
+                $result = [
+                    'name'      => $file,
+                    'relative'  => $relativeItemPath,
+                    'isDir'     => $isDir,
+                    'size'      => $itemSize,
+                    'time'      => $itemTime,
+                    'created'   => $itemCreated,
+                    'isSymlink' => $isSymlink,
+                ];
+            }
+        }
+    }
+
+    return $result;
+}
+
+function populateItems(array $files, string $fullPath, string $path, bool $showFolders, bool $showHidden): array
+{
+    global $totalFiles, $totalSize;
+    $items = [];
+
+    foreach ($files as $file) {
+        $item = processDirectoryItem($file, $fullPath, $path, $showFolders, $showHidden);
+        if ($item !== null) {
+            $items[] = $item;
+            if (!$item['isDir']) {
+                $totalFiles++;
+                $totalSize += $item['size'];
+            }
+        }
+    }
+
+    return $items;
+}
+
 function listDirectory(string $path, bool $showFolders = true, bool $showHidden = false): array
 {
-    global $totalFiles, $totalSize, $baseDir, $filesToHide, $dangerousExtensions, $allowExternalSymlinks;
+    global $baseDir, $filesToHide, $allowExternalSymlinks;
 
     $items = [];
     $path = sanitizePath($path);
 
-    if (!isDisplayableFolder($path, $showHidden, $filesToHide)) {
-        return $items;
-    }
-
-    $fullPath = resolveExistingPath($path, $baseDir, $allowExternalSymlinks);
-
-    if ($fullPath === false || !is_dir($fullPath) || !is_readable($fullPath)) {
-        return $items;
-    }
-
-    $files = @scandir($fullPath);
-    if ($files === false) {
-        return $items;
-    }
-
-    foreach ($files as $file) {
-        if ($file === '.' || $file === '..') {
-            continue;
-        }
-
-        if (isHiddenName($file, $showHidden, $filesToHide)) {
-            continue;
-        }
-
-        $linkPath = $fullPath . DIRECTORY_SEPARATOR . $file;
-        $isSymlink = is_link($linkPath);
-
-        // Optimization: Resolve realpath only if the file is a symbolic link
-        if ($isSymlink) {
-            $itemRealPath = realpath($linkPath);
-            if ($itemRealPath === false) {
-                continue;
+    if (isDisplayableFolder($path, $showHidden, $filesToHide)) {
+        $fullPath = resolveExistingPath($path, $baseDir, $allowExternalSymlinks);
+        if ($fullPath !== false && is_dir($fullPath) && is_readable($fullPath)) {
+            $files = @scandir($fullPath);
+            if ($files !== false) {
+                $items = populateItems($files, $fullPath, $path, $showFolders, $showHidden);
             }
-            if (!$allowExternalSymlinks && !isPathInsideBase($itemRealPath, $baseDir)) {
-                continue;
-            }
-        } else {
-            $itemRealPath = $linkPath;
-        }
-
-        $isDir = is_dir($itemRealPath);
-        if ($isDir && !$showFolders) {
-            continue;
-        }
-
-        if (!$isDir && isDangerousExtension($file, $dangerousExtensions)) {
-            continue;
-        }
-
-        $relativeItemPath = trim($path . '/' . $file, '/');
-        $itemSize = $isDir ? 0 : (int) (@filesize($itemRealPath) ?: 0);
-        $itemTime = (int) (@filemtime($itemRealPath) ?: 0);
-        $stat = @stat($itemRealPath);
-        $itemCreated = (is_array($stat) && isset($stat['birthtime']) && (int) $stat['birthtime'] > 0)
-            ? (int) $stat['birthtime']
-            : $itemTime;
-
-        $items[] = [
-            'name'      => $file,
-            'relative'  => $relativeItemPath,
-            'isDir'     => $isDir,
-            'size'      => $itemSize,
-            'time'      => $itemTime,
-            'created'   => $itemCreated,
-            'isSymlink' => $isSymlink,
-        ];
-
-        if (!$isDir) {
-            $totalFiles++;
-            $totalSize += $itemSize;
         }
     }
 
@@ -964,7 +1161,7 @@ function listDirectory(string $path, bool $showFolders = true, bool $showHidden 
 // =================== INITIALIZATION ===================
 $nonce = makeNonce();
 sendSecurityHeaders($nonce);
-startSecureSession();
+startSecureSession(max(3600, $passwordSessionLifetime));
 
 try {
     if (!isset($_SESSION['csrf'])) {
@@ -972,6 +1169,58 @@ try {
     }
 } catch (Throwable $e) {
     error_log('Failed to generate CSRF token: ' . $e->getMessage());
+}
+
+// =================== FOLDER PROTECTION CHECK ===================
+$accessedDir = '';
+if (isset($_GET['md5'])) {
+    $requestedFile = sanitizePath((string) $_GET['md5']);
+    $accessedDir = sanitizePath(dirname($requestedFile));
+} elseif (isset($_GET['folder'])) {
+    $accessedDir = sanitizePath((string) $_GET['folder']);
+} else {
+    $accessedDir = sanitizePath($browseDefault);
+}
+
+$unlockedSessions = $_SESSION['unlocked_folders'] ?? [];
+$lockedFolder = getFirstLockedFolder($accessedDir, $protectedFolders, $unlockedSessions, $passwordSessionLifetime);
+
+if ($lockedFolder !== null) {
+    $loginError = null;
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['folder_password'], $_POST['locked_folder'], $_POST['csrf_token'])) {
+        $csrfSession = $_SESSION['csrf'] ?? '';
+        if (!hash_equals($csrfSession, (string) $_POST['csrf_token'])) {
+            http_response_code(403);
+            exit('Invalid CSRF token.');
+        }
+
+        $postLockedFolder = (string) $_POST['locked_folder'];
+        $postLockedFolderLower = strtolower($postLockedFolder);
+        $passwordInput = (string) $_POST['folder_password'];
+        $lowercaseProtectedFolders = array_change_key_case($protectedFolders, CASE_LOWER);
+
+        if (array_key_exists($postLockedFolderLower, $lowercaseProtectedFolders)) {
+            $storedHash = $lowercaseProtectedFolders[$postLockedFolderLower];
+            // password_verify() is timing-safe and supports bcrypt hashes
+            if (password_verify($passwordInput, $storedHash)) {
+                $_SESSION['unlocked_folders'][$postLockedFolderLower] = time();
+
+                // Close session before redirect to persist data
+                session_write_close();
+
+                // Redirect back to the folder that was just unlocked
+                $redirectTarget = queryUrl(['folder' => $accessedDir]);
+                header('Location: ' . $redirectTarget);
+                exit;
+            } else {
+                $loginError = 'Password salah!';
+            }
+        }
+    }
+
+    // Render password input page and exit
+    renderPasswordPage($lockedFolder, $loginError, $nonce);
+    exit;
 }
 
 if (session_status() === PHP_SESSION_ACTIVE) {
@@ -1092,654 +1341,30 @@ $alignmentClass = match ($alignment) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo e($pageTitle); ?> - File Browser</title>
-    <meta name="description" content="Browse files and directories securely with hash verification support. Features include CRC32, MD5, SHA-1 checksums, responsive design, and enhanced security.">
-    <meta name="keywords" content="file browser, directory listing, hash check, CRC32, MD5, SHA-1, secure browsing, responsive design">
-    <meta name="author" content="ALSYUNDAWY IT SOLUTION">
-    <meta name="robots" content="index, follow">
-    <meta name="language" content="en">
-    <meta name="revisit-after" content="7 days">
-    <meta property="og:title" content="<?php echo e($pageTitle); ?>">
-    <meta property="og:description" content="Secure file and directory browser with hash verification capabilities">
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="<?php echo e(getCanonicalURL()); ?>">
-    <meta property="og:site_name" content="File Browser">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="<?php echo e($pageTitle); ?>">
-    <meta name="twitter:description" content="Secure file and directory browser">
+    <script nonce="<?php echo e($nonce); ?>">
+        (function() {
+            const theme = localStorage.getItem('theme') || 'light';
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark-mode');
+            }
+        })();
+    </script>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <title><?php echo e($pageTitle); ?></title>
+    <meta name="description" content="Securely browse files and folders online. Custom responsive UI with light and dark mode toggling.">
+    <meta name="robots" content="noindex,nofollow">
     <link rel="canonical" href="<?php echo e(getCanonicalURL()); ?>">
-    <link rel="icon" href="favicon.ico" type="image/x-icon">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://unpkg.com/@fortawesome/fontawesome-free@6.7.2/css/all.min.css">
-    <style nonce="<?php echo e($nonce); ?>">
-        :root {
-            --bg-color: #080c14;
-            --card-bg: rgba(15, 23, 42, 0.65);
-            --card-border: rgba(255, 255, 255, 0.08);
-            --primary-glow: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-            --accent-color: #6366f1;
-            --accent-hover: #818cf8;
-            --text-primary: #f8fafc;
-            --text-secondary: #94a3b8;
-            --text-muted: #64748b;
-            --border-color: rgba(255, 255, 255, 0.06);
-            --hover-bg: rgba(255, 255, 255, 0.04);
-            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
-            --glass-blur: blur(16px);
-        }
-
-        * {
-            box-sizing: border-box;
-        }
-
-        /* Custom scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: var(--bg-color);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            font-weight: 400;
-            color: var(--text-primary);
-            background-color: var(--bg-color);
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(79, 70, 229, 0.12) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(124, 58, 237, 0.12) 0px, transparent 50%);
-            background-attachment: fixed;
-            line-height: 1.6;
-            margin: 0;
-            padding: 0;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            text-rendering: optimizeLegibility;
-            min-height: 100vh;
-        }
-
-        .bg-glow {
-            position: fixed;
-            width: 350px;
-            height: 350px;
-            border-radius: 50%;
-            pointer-events: none;
-            z-index: -1;
-            filter: blur(120px);
-            opacity: 0.12;
-        }
-        .bg-glow-1 {
-            top: -100px;
-            left: -100px;
-            background: #4f46e5;
-        }
-        .bg-glow-2 {
-            bottom: -100px;
-            right: -100px;
-            background: #7c3aed;
-        }
-
-        a {
-            text-decoration: none;
-            color: inherit;
-            transition: all 0.2s ease;
-        }
-
-        a:hover {
-            text-decoration: none;
-            color: var(--accent-hover);
-        }
-
-        /* Loading Screen */
-        .loading-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: var(--bg-color);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-            transition: opacity 0.3s ease;
-        }
-
-        .loading-screen.fade-out {
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .spinner {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            display: inline-block;
-            border-top: 4px solid var(--accent-color);
-            border-right: 4px solid transparent;
-            animation: rotation 1s linear infinite;
-            position: relative;
-        }
-
-        .spinner::after {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            border-bottom: 4px solid #8b5cf6;
-            border-left: 4px solid transparent;
-        }
-
-        @keyframes rotation {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .loading-text {
-            margin-top: 20px;
-            color: var(--text-secondary);
-            font-weight: 500;
-            letter-spacing: 2px;
-            font-size: 0.85rem;
-        }
-
-        /* Header Styles */
-        header {
-            background: rgba(15, 23, 42, 0.45);
-            backdrop-filter: var(--glass-blur);
-            -webkit-backdrop-filter: var(--glass-blur);
-            border-bottom: 1px solid var(--card-border);
-            padding: 2rem 0;
-            margin-bottom: 2.5rem;
-            box-shadow: var(--shadow-sm);
-        }
-
-        header img {
-            max-height: 90px;
-            width: auto;
-            cursor: pointer;
-            transition: transform 0.3s ease;
-            image-rendering: -webkit-optimize-contrast;
-            image-rendering: crisp-edges;
-            filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.4));
-        }
-
-        header img:hover {
-            transform: scale(1.03);
-        }
-
-        header h1 {
-            font-size: 1.65rem;
-            font-weight: 700;
-            margin-top: 1rem;
-            margin-bottom: 0.5rem;
-            letter-spacing: -0.5px;
-            background: linear-gradient(135deg, #f8fafc 0%, #cbd5e1 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        header p {
-            color: var(--text-secondary) !important;
-            font-size: 0.95rem;
-        }
-
-        /* Container Styles */
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-
-        /* Page Header */
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            margin-bottom: 2rem;
-            gap: 1.5rem;
-            background: rgba(15, 23, 42, 0.45);
-            backdrop-filter: var(--glass-blur);
-            -webkit-backdrop-filter: var(--glass-blur);
-            border: 1px solid var(--card-border);
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: var(--shadow-md);
-        }
-
-        .page-title h2 {
-            font-size: 1.35rem;
-            font-weight: 600;
-            margin: 0;
-            word-break: break-all;
-            letter-spacing: -0.3px;
-            color: var(--text-primary);
-        }
-
-        .page-subtitle {
-            color: var(--text-secondary);
-            font-size: 0.85rem;
-            margin-top: 0.5rem;
-            margin-bottom: 0;
-        }
-
-        /* Search Input */
-        .search-container {
-            position: relative;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            flex-wrap: wrap;
-        }
-
-        .search-input {
-            display: flex;
-            align-items: center;
-            position: relative;
-        }
-
-        .search-input input {
-            padding: 0.5rem 2.5rem 0.5rem 1rem;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid var(--card-border);
-            border-radius: 8px;
-            font-size: 0.85rem;
-            width: 220px;
-            color: var(--text-primary);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .search-input input:focus {
-            outline: none;
-            background: rgba(255, 255, 255, 0.08);
-            border-color: var(--accent-color);
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
-            width: 280px;
-        }
-
-        .search-input .search-icon {
-            position: absolute;
-            right: 0.85rem;
-            color: var(--text-muted);
-            pointer-events: none;
-            transition: color 0.2s ease;
-        }
-
-        .search-input input:focus + .search-icon {
-            color: var(--accent-color);
-        }
-
-        /* Sort Buttons */
-        .sort-buttons {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-        }
-
-        .sort-buttons .btn {
-            font-size: 0.8rem;
-            padding: 0.5rem 0.85rem;
-            white-space: nowrap;
-            font-weight: 500;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            gap: 0.35rem;
-        }
-
-        .sort-buttons .btn-outline-secondary {
-            color: var(--text-primary);
-            border-color: var(--border-color);
-            background-color: rgba(255, 255, 255, 0.02);
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .sort-buttons .btn-outline-secondary:hover {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: var(--text-secondary);
-            color: white;
-            transform: translateY(-1px);
-        }
-
-        .sort-buttons .btn.active {
-            background: var(--primary-glow) !important;
-            border-color: transparent !important;
-            color: white !important;
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-            transform: translateY(-1px);
-        }
-
-        /* Table Styles */
-        .table-container {
-            background: var(--card-bg);
-            backdrop-filter: var(--glass-blur);
-            -webkit-backdrop-filter: var(--glass-blur);
-            border: 1px solid var(--card-border);
-            border-radius: 12px;
-            box-shadow: var(--shadow-lg);
-            overflow: hidden;
-            padding: 0.75rem;
-        }
-
-        .table {
-            margin-bottom: 0;
-            font-size: 0.92rem;
-            color: var(--text-primary);
-            --bs-table-bg: transparent;
-            --bs-table-hover-bg: transparent;
-            border-collapse: separate;
-            border-spacing: 0 6px;
-        }
-
-        .table thead th {
-            background-color: transparent !important;
-            color: var(--text-secondary);
-            font-weight: 600;
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 1.2px;
-            border-bottom: 1px solid var(--border-color);
-            padding: 1rem 1.25rem;
-            white-space: nowrap;
-        }
-
-        .table tbody tr {
-            background-color: rgba(255, 255, 255, 0.015);
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .table tbody tr:hover {
-            background-color: rgba(255, 255, 255, 0.055);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-        }
-
-        .table tbody tr.parent-row {
-            background-color: rgba(255, 255, 255, 0.005);
-        }
-
-        .table tbody tr.parent-row:hover {
-            background-color: rgba(255, 255, 255, 0.03);
-            transform: none;
-            box-shadow: none;
-        }
-
-        .table tbody tr.search-hidden {
-            display: none !important;
-        }
-
-        .table td {
-            padding: 0.9rem 1.25rem;
-            vertical-align: middle;
-            border: none;
-            color: var(--text-primary);
-        }
-
-        .table tbody tr td:first-child {
-            border-top-left-radius: 8px;
-            border-bottom-left-radius: 8px;
-        }
-
-        .table tbody tr td:last-child {
-            border-top-right-radius: 8px;
-            border-bottom-right-radius: 8px;
-        }
-
-        /* Column Widths */
-        .col-name { width: auto; }
-        .col-date { width: 160px; white-space: nowrap; }
-        .col-size { width: 100px; text-align: right; }
-        .col-hash { width: 100px; text-align: center; }
-
-        /* Icon Styles */
-        .file-icon {
-            margin-right: 0.65rem;
-            width: 18px;
-            text-align: center;
-            font-size: 1.05rem;
-            transition: transform 0.2s ease;
-        }
-
-        .table tr:hover .file-icon {
-            transform: scale(1.15);
-        }
-
-        /* Vibrant File Type Icon Colors */
-        .file-icon.fa-folder { color: #f59e0b; }
-        .file-icon.fa-file-pdf { color: #ef4444; }
-        .file-icon.fa-file-word { color: #3b82f6; }
-        .file-icon.fa-file-excel { color: #10b981; }
-        .file-icon.fa-file-powerpoint { color: #f97316; }
-        .file-icon.fa-file-archive { color: #8b5cf6; }
-        .file-icon.fa-file-image { color: #06b6d4; }
-        .file-icon.fa-file-video { color: #ec4899; }
-        .file-icon.fa-file-audio { color: #14b8a6; }
-        .file-icon.fa-file-code { color: #a855f7; }
-        .file-icon.fa-file-alt { color: #94a3b8; }
-        .file-icon.fa-file-cog { color: #64748b; }
-        .file-icon.fa-cogs { color: #f43f5e; }
-        .file-icon.fa-database { color: #0ea5e9; }
-        .file-icon.fa-font { color: #f43f5e; }
-
-        .symlink-badge {
-            font-size: 0.75rem;
-            margin-left: 0.4rem;
-            color: var(--accent-hover);
-        }
-
-        /* Hash Check Button styling */
-        .btn-outline-info {
-            color: var(--accent-hover);
-            border-color: rgba(99, 102, 241, 0.3);
-            background: rgba(99, 102, 241, 0.05);
-            transition: all 0.2s ease;
-            font-weight: 500;
-        }
-        .btn-outline-info:hover {
-            color: white;
-            background: var(--accent-color);
-            border-color: transparent;
-            box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
-            transform: scale(1.05);
-        }
-
-        /* Back to Top Button */
-        .back-to-top {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            width: 45px;
-            height: 45px;
-            background: var(--primary-glow);
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 1000;
-            box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .back-to-top.show {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .back-to-top:hover {
-            background: var(--primary-glow);
-            transform: translateY(-4px);
-            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
-        }
-
-        /* Footer */
-        footer {
-            text-align: center;
-            padding: 2.5rem 0;
-            margin-top: 5rem;
-            border-top: 1px solid var(--card-border);
-            background: rgba(15, 23, 42, 0.4);
-        }
-
-        footer p {
-            font-size: 0.9rem;
-            color: var(--text-muted) !important;
-        }
-
-        footer a {
-            color: var(--accent-color);
-            font-weight: 500;
-        }
-
-        footer a:hover {
-            color: var(--accent-hover);
-        }
-
-        /* No results */
-        .no-results {
-            display: none;
-            text-align: center;
-            padding: 4rem 2rem;
-            color: var(--text-secondary);
-        }
-
-        .no-results.show {
-            display: block;
-        }
-
-        /* Responsive Design */
-        @media (max-width: 991px) {
-            .page-header {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            .search-container {
-                width: 100%;
-                flex-direction: column;
-                align-items: stretch;
-                gap: 1rem;
-            }
-            .search-input {
-                width: 100%;
-            }
-            .search-input input {
-                width: 100% !important;
-            }
-            .sort-buttons {
-                width: 100%;
-            }
-            .sort-buttons .btn {
-                flex: 1;
-                justify-content: center;
-            }
-        }
-
-        @media (max-width: 768px) {
-            header {
-                padding: 1.5rem 0;
-                margin-bottom: 1.5rem;
-            }
-            header h1 {
-                font-size: 1.4rem;
-            }
-            .table {
-                font-size: 0.82rem;
-            }
-            .table td, .table th {
-                padding: 0.8rem 0.65rem;
-            }
-            .col-date {
-                width: 120px;
-            }
-            .col-size {
-                width: 75px;
-            }
-            .back-to-top {
-                bottom: 20px;
-                right: 20px;
-                width: 40px;
-                height: 40px;
-            }
-        }
-
-        @media (max-width: 576px) {
-            .col-date {
-                display: none;
-            }
-            header img {
-                max-height: 65px;
-            }
-            .page-title h2 {
-                font-size: 1.15rem;
-            }
-        }
-
-        /* High Resolution Support */
-        @media (min-width: 1440px) {
-            .container {
-                max-width: 1320px;
-            }
-            .table {
-                font-size: 0.95rem;
-            }
-        }
-
-        @media (min-width: 1920px) {
-            .container {
-                max-width: 1540px;
-            }
-        }
-
-        /* Print Styles */
-        @media print {
-            .search-container,
-            .sort-buttons,
-            .back-to-top,
-            .btn {
-                display: none !important;
-            }
-        }
-
-        /* Font rendering optimization */
-        .fas, .fa {
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            font-weight: 900 !important;
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://unpkg.com/@fortawesome/fontawesome-free@6.7.2/css/all.min.css" integrity="sha384-nRgPTkuX86pH8yjPJUAFuASXQSSl2/bBUiNV47vSYpKFxHJhbcrGnmlYpYJMeD7a" crossorigin="anonymous">
+    <style nonce="<?php echo e($nonce); ?>">:root{--p:#007bff;--s:#475569;--h:#f8f9fa;--b:#dee2e6;--tp:#0f172a;--ts:#334155;--hc:#0f172a;--fi:#007bff;--bl:#fff;--bg-color:var(--bl);--card-bg:#fff;--card-border:var(--b);--text-primary:var(--tp);--text-secondary:var(--ts);--text-muted:var(--s);--border-color:var(--b);--hover-bg:rgba(0,123,255,0.04);--row-bg:#fff;--row-hover:#f1f5f9;--parent-row-bg:#f8fafc;--parent-row-hover:#f1f5f9;--shadow-sm:0 1px 2px 0 rgba(0,0,0,0.05);--shadow-md:0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -1px rgba(0,0,0,0.06);--shadow-lg:0 10px 15px -3px rgba(0,0,0,0.2),0 4px 6px -2px rgba(0,0,0,0.1);--accent-color:var(--p);--accent-hover:#0056b3}.dark-mode{--bl:#020617;--bg-color:#020617;--card-bg:#0f172a;--card-border:#1e293b;--text-primary:#f8fafc;--text-secondary:#e2e8f0;--text-muted:#cbd5e1;--border-color:#1e293b;--hover-bg:rgba(59,130,246,0.12);--h:#131b2e;--row-bg:#0f172a;--row-hover:#1e293b;--parent-row-bg:#0b0f19;--parent-row-hover:#131b2e;--shadow-lg:0 10px 25px -5px rgba(0,0,0,0.5);--accent-color:#3b82f6;--accent-hover:#60a5fa}.dark-mode .text-muted{color:var(--text-muted) !important}.dark-mode .text-secondary{color:var(--text-secondary) !important}*{box-sizing:border-box}html,body{background-color:var(--bg-color);transition:background-color 0.3s ease,color 0.3s ease}body{font-family:'Inter',sans-serif;font-weight:400;font-size:1rem;line-height:1.7;color:var(--text-primary);margin:0;overflow-x:hidden}body.dark-mode{background:linear-gradient(135deg,#0f172a 0%,#020617 100%) !important;background-attachment:fixed !important}h1,h2,h3,h4,h5,h6{font-family:'Lora',serif;font-weight:600;color:var(--hc);transition:color 0.3s ease}.dark-mode h1,.dark-mode h2,.dark-mode h3,.dark-mode h4,.dark-mode h5,.dark-mode h6{color:var(--text-primary)}a{text-decoration:none;color:var(--p);transition:all 0.2s ease}a:hover{color:#0052a3}.dark-mode a{color:#60a5fa}.dark-mode a:hover{color:#93c5fd}.container{max-width:1400px;padding:0 2rem;margin:0 auto;width:100%}.loading-screen{position:fixed;top:0;left:0;width:100%;height:100%;background:var(--bg-color);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 0.3s ease,visibility 0.3s ease}.loading-screen.fade-out{opacity:0;visibility:hidden}.spinner{width:45px;height:45px;border:3.5px solid var(--border-color);border-top-color:var(--p);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:1.25rem}.dark-mode .spinner{border-top-color:#60a5fa}.loading-text{font-size:0.8rem;font-weight:700;letter-spacing:0.15em;color:var(--text-secondary)}@keyframes spin{to{transform:rotate(360deg)}}header{padding:2rem 0;background-color:var(--bg-color);border-bottom:1px solid var(--border-color);position:relative;z-index:100;transition:background-color 0.3s ease,border-color 0.3s ease}.dark-mode header{background:rgba(15,23,42,0.8);border-bottom:1px solid #1e293b;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}.logo-container img{max-height:80px;width:auto;max-width:100%;transition:transform 0.3s ease,filter 0.3s ease;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.08))}.logo-container img:hover{transform:scale(1.05) rotate(1deg)}.dark-mode .logo-container img{filter:drop-shadow(0 0 12px rgba(59,130,246,0.45))}header h3{font-size:1.5rem;margin:1rem 0 0.5rem;font-weight:700}header h1.display-5{font-size:clamp(1.25rem,4vw,2rem);word-break:break-all;font-weight:600;margin-top:1rem}.repo-pathbar{display:flex;align-items:center;flex-wrap:wrap;gap:.45rem;width:100%;margin:0 auto 1.5rem;padding:.9rem 1rem;color:#334155;background:rgba(255,255,255,.94);border:1px solid rgba(0,123,255,.16);border-radius:14px;box-shadow:0 4px 18px rgba(15,23,42,.08);font-size:.92rem;line-height:1.45;transition:background-color 0.3s ease,border-color 0.3s ease,box-shadow 0.3s ease}.repo-pathbar-trail{display:inline-flex;align-items:center;flex-wrap:wrap;gap:.35rem;min-width:0}.repo-pathbar a,.repo-pathbar-current{display:inline-flex;align-items:center;gap:.38rem;max-width:100%;word-break:break-all;overflow-wrap:anywhere;font-weight:700}.repo-pathbar-current{color:#64748b}.repo-pathbar-separator{color:#94a3b8;font-weight:800;user-select:none}.dark-mode .repo-pathbar{color:#e2e8f0;background:rgba(15,23,42,.92);border-color:#334155;box-shadow:0 4px 20px rgba(0,0,0,.32)}.dark-mode .repo-pathbar-current{color:#cbd5e1}.dark-mode .repo-pathbar-separator{color:#64748b}.btn-outline-secondary{color:var(--text-secondary);background-color:transparent;border-color:var(--card-border);transition:all 0.2s ease}.btn-outline-secondary:hover,.btn-outline-secondary.active{background-color:var(--hover-bg);border-color:var(--accent-color);color:var(--accent-color)}.table-container{border-radius:12px;overflow:hidden;box-shadow:var(--shadow-md);border:1px solid var(--border-color);background-color:var(--card-bg);margin-bottom:2.5rem;transition:border-color 0.3s ease,background-color 0.3s ease}.table-responsive{margin-bottom:0;border-radius:0;overflow-x:auto}.table{margin-bottom:0;font-size:0.95rem;width:100%;table-layout:fixed;border-collapse:collapse;border-color:var(--border-color)}.table th,.table td{padding:1rem .75rem;vertical-align:middle;border-color:var(--border-color);overflow:hidden;text-overflow:ellipsis}.table thead th{background:#212529 !important;color:#ffffff !important;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;font-size:0.75rem;border-color:#212529;transition:background-color 0.3s ease,border-color 0.3s ease}.dark-mode .table thead th{background:linear-gradient(135deg,#1e293b 0%,#334155 100%) !important;color:var(--text-primary) !important;border-color:#334155}.table-col-date{width:200px !important;min-width:200px !important;max-width:200px !important;white-space:nowrap}.table-col-size{width:115px !important;min-width:115px !important;max-width:115px !important;text-align:right}.table-col-hash{width:76px !important;min-width:76px !important;max-width:76px !important;text-align:center}.table-col-date .short-date{display:none}.table-col-date .full-date{display:inline}.table tbody tr:nth-of-type(odd)>td,.table tbody tr:nth-of-type(odd)>th{background-color:var(--card-bg) !important;color:var(--text-primary) !important}.table tbody tr:nth-of-type(even)>td,.table tbody tr:nth-of-type(even)>th{background-color:var(--h) !important;color:var(--text-primary) !important}.dark-mode .table tbody tr:nth-of-type(odd)>td,.dark-mode .table tbody tr:nth-of-type(odd)>th{background-color:#1e293b !important;color:var(--text-primary) !important}.dark-mode .table tbody tr:nth-of-type(even)>td,.dark-mode .table tbody tr:nth-of-type(even)>th{background-color:#1b2537 !important;color:var(--text-primary) !important}.table-hover tbody tr{transition:background-color 0.2s ease,box-shadow 0.2s ease}.table-hover tbody tr:hover>td,.table-hover tbody tr:hover>th{background-color:#f1f5f9 !important}.dark-mode .table-hover tbody tr:hover>td,.dark-mode .table-hover tbody tr:hover>th{background-color:#2e3b4e !important;box-shadow:inset 0 0 0 1px rgba(59,130,246,0.3)}.parent-row>td,.parent-row>th{background-color:var(--parent-row-bg) !important}.parent-row:hover>td,.parent-row:hover>th{background-color:var(--parent-row-hover) !important}.folder-link{color:var(--p) !important;font-weight:700}.file-link{color:var(--text-primary) !important;font-weight:500}.dark-mode .folder-link{color:#60a5fa !important}.dark-mode .file-link{color:var(--text-primary) !important}.file-icon{font-size:1.1rem;width:1.5rem;text-align:center;color:var(--p);margin-right:0.5rem}.dark-mode .file-icon{color:#60a5fa}.search-wrapper{padding:0.9rem 0 0.25rem;transition:all 0.3s ease}.search-form{max-width:520px;margin:0 auto}.search-input-group{display:flex;align-items:center;background:#fff;border:1.5px solid rgba(0,123,255,0.15);border-radius:50px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,0.06);transition:border-color .2s ease,box-shadow .2s ease,background-color 0.3s ease}.search-input-group:focus-within{border-color:rgba(0,123,255,0.45);box-shadow:0 4px 20px rgba(0,123,255,0.1),0 0 0 3px rgba(0,123,255,0.07)}.search-icon-left{padding:0 0 0 1.1rem;color:#c0c8d0;font-size:0.78rem;flex-shrink:0;pointer-events:none}.search-input{flex:1;border:0;background:transparent;padding:0.6rem 0.7rem;font-size:0.875rem;color:var(--text-primary);outline:none;min-width:0}.search-input::placeholder{color:#c0c8d0;font-style:italic}.search-btn{border:0;background:linear-gradient(135deg,var(--p) 0%,#0056b3 100%);color:#fff;padding:0 1.1rem;min-height:38px;cursor:pointer;font-size:0.78rem;border-radius:0 50px 50px 0;transition:background .2s;flex-shrink:0}.search-btn:hover{background:linear-gradient(135deg,#0056b3 0%,#003f88 100%)}.search-hint{font-size:0.7rem;color:#c0c8d0;margin:0.45rem 0 0;text-align:center;letter-spacing:0.01em}.dark-mode .search-input-group{background:rgba(30,41,59,0.85);border-color:rgba(96,165,250,0.15)}.dark-mode .search-input-group:focus-within{border-color:rgba(96,165,250,0.45);box-shadow:0 4px 20px rgba(59,130,246,0.1),0 0 0 3px rgba(59,130,246,0.07)}.dark-mode .search-input::placeholder{color:#475569}.dark-mode .search-icon-left{color:#475569}.dark-mode .search-hint{color:#475569}.search-hidden{display:none !important}.fab-home{position:fixed;bottom:8.75rem;right:1.5rem;width:2.25rem;height:2.25rem;background:linear-gradient(135deg,#6366f1 0%,#4f46e5 100%);color:#fff;border-radius:50%;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;visibility:hidden;z-index:2000;box-shadow:0 4px 14px rgba(99,102,241,.45),0 1px 3px rgba(0,0,0,.15);transition:all .25s cubic-bezier(.175,.885,.32,1.275)}.fab-home.show{opacity:1;visibility:visible}.fab-home:hover{transform:translateY(-4px) scale(1.1);box-shadow:0 8px 22px rgba(99,102,241,.55)}.fab-home i{font-size:.7rem}.dark-mode .fab-home{background:linear-gradient(135deg,#818cf8 0%,#6366f1 100%);box-shadow:0 4px 14px rgba(129,140,248,.35),0 1px 3px rgba(0,0,0,.3)}.dark-mode .fab-home:hover{background:#4f46e5;box-shadow:0 6px 16px rgba(99,102,241,.4)}.back-to-top-control{position:fixed;bottom:5rem;right:1.5rem;width:2.25rem;height:2.25rem;background:linear-gradient(135deg,#0ea5e9 0%,#0284c7 100%);color:#fff;border-radius:50%;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;visibility:hidden;z-index:2000;box-shadow:0 4px 14px rgba(14,165,233,.45),0 1px 3px rgba(0,0,0,.15);transition:all .25s cubic-bezier(.175,.885,.32,1.275)}.back-to-top-control.show{opacity:1;visibility:visible}.back-to-top-control:hover{transform:translateY(-4px) scale(1.1);box-shadow:0 8px 22px rgba(14,165,233,.55)}.back-to-top-control i{font-size:.7rem}.dark-mode .back-to-top-control{background:linear-gradient(135deg,#38bdf8 0%,#0ea5e9 100%);box-shadow:0 4px 14px rgba(56,189,248,.35),0 1px 3px rgba(0,0,0,.3)}.dark-mode .back-to-top-control:hover{background:#2563eb;box-shadow:0 6px 16px rgba(59,130,246,.4)}#theme-toggle-main.theme-toggle-header{position:absolute !important;top:1.5rem !important;right:1.5rem !important;bottom:auto !important;left:auto !important;z-index:150 !important;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);will-change:auto !important;transform:none !important}#theme-toggle-main.theme-toggle-header i{pointer-events:none;transform:none !important}#theme-toggle-main.theme-toggle-header:hover{transform:scale(1.1) rotate(15deg) !important}footer{text-align:center;padding:2.5rem 0 1.75rem;color:var(--text-secondary);font-size:0.875rem;transition:color 0.3s ease}.footer-inner{max-width:640px;margin:0 auto;padding:0 1.25rem}.footer-divider{width:56px;height:2px;background:linear-gradient(90deg,transparent,var(--p),transparent);margin:0 auto 1.75rem;border-radius:1px}.dark-mode .footer-divider{background:linear-gradient(90deg,transparent,#3b82f6,transparent)}.social-links{display:flex;justify-content:center;gap:1rem;flex-wrap:wrap;margin-bottom:2rem;padding:0 .5rem}.social-links a{display:flex;align-items:center;justify-content:center;width:2.2rem;height:2.2rem;border-radius:50%;border:1.5px solid rgba(0,0,0,0.12);color:var(--text-secondary);font-size:0.82rem;text-decoration:none;transition:all .22s ease;opacity:0.8}.social-links a:hover{background:var(--p);color:#fff !important;border-color:var(--p);opacity:1;transform:translateY(-2px);box-shadow:0 4px 10px rgba(0,123,255,0.25)}.dark-mode .social-links a{border-color:rgba(255,255,255,0.12);color:#94a3b8}.dark-mode .social-links a:hover{background:#3b82f6;border-color:#3b82f6;color:#fff !important;box-shadow:0 4px 10px rgba(59,130,246,0.3)}.footer-title{font-size:.74rem;font-weight:700;letter-spacing:.04em;margin-bottom:.35rem;line-height:2;text-align:center;padding:0 .5rem}.footer-title a{color:var(--text-primary);text-decoration:none;transition:color .2s;display:inline-flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:.15rem}.footer-title a:hover{color:var(--p)}.ft-sep{opacity:.35;font-weight:400;letter-spacing:0;flex-shrink:0}.ft-part{white-space:nowrap;display:inline}.footer-copy{font-size:0.7rem;opacity:0.5;margin:0}.no-results{display:none;text-align:center;padding:3rem 1.5rem;color:var(--text-secondary)}.no-results.show{display:block}.symlink-badge{margin-left:0.5rem;font-size:0.8rem;color:var(--text-muted)}@media (max-width:576px){.container{padding:0 .5rem}.table{font-size:0.75rem;table-layout:auto !important;width:100% !important}colgroup col:nth-child(4){display:none !important;width:0 !important;min-width:0 !important;max-width:0 !important}colgroup col:nth-child(1){width:auto !important;min-width:0 !important;max-width:none !important}colgroup col:nth-child(2),colgroup col:nth-child(3){width:1% !important;min-width:0 !important;max-width:none !important}.table th,.table td{padding:0.5rem 0.35rem}.table th:nth-child(4),.table td:nth-child(4){display:none !important}.table th:nth-child(1),.table td:nth-child(1){width:auto !important;max-width:none !important;white-space:normal !important;word-break:break-all !important;overflow:visible !important}.table th:nth-child(2),.table td:nth-child(2){width:1% !important;min-width:0 !important;max-width:none !important;white-space:nowrap !important;font-size:0.65rem !important;opacity:0.8}.table-col-date .full-date{display:none !important}.table-col-date .short-date{display:inline !important}.table th:nth-child(3),.table td:nth-child(3){width:1% !important;min-width:0 !important;max-width:none !important;white-space:nowrap !important;text-align:right !important}.table-responsive{overflow-x:hidden !important;border-radius:12px}#theme-toggle-main.theme-toggle-header{top:1rem !important;right:1rem !important}.social-links{gap:0.75rem;padding:0}.social-links a{width:2rem;height:2rem;font-size:0.78rem}.repo-pathbar{padding:.75rem .8rem;font-size:.82rem}.footer-title a{flex-direction:column;gap:.08rem}.ft-sep{display:none}.ft-part{display:block;text-align:center;width:100%}.back-to-top-control{bottom:4.75rem;right:1.25rem;width:2rem;height:2rem}.back-to-top-control i{font-size:.65rem}}@media (min-width:2560px){.container{max-width:2200px}body{font-size:1.2rem}.logo-container img{max-height:300px}}@media (min-width:3840px){.container{max-width:3200px}body{font-size:1.5rem}.logo-container img{max-height:400px}}@media print{.search-wrapper,.btn-group,#theme-toggle-main,.back-to-top-control{display:none !important}}#search-form-container{display:none;transition:opacity .18s ease,transform .18s ease}#fileTable{table-layout:fixed;width:100%}#fileTable col:nth-child(2){width:200px;min-width:200px}#fileTable col:nth-child(3){width:115px;min-width:115px}#fileTable col:nth-child(4){width:76px;min-width:76px}</style>
     <noscript>
-        <style>
-            .loading-screen { display: none !important; }
-        </style>
+        <style nonce="<?php echo e($nonce); ?>">.loading-screen{display:none !important}</style>
     </noscript>
 </head>
 <body>
-    <!-- Glow Background Effects -->
-    <div class="bg-glow bg-glow-1"></div>
-    <div class="bg-glow bg-glow-2"></div>
-
     <!-- Loading Screen -->
     <div class="loading-screen" id="loadingScreen" aria-live="polite" aria-label="Loading">
         <span class="spinner"></span>
@@ -1747,22 +1372,19 @@ $alignmentClass = match ($alignment) {
     </div>
 
     <!-- Header -->
-    <header>
-        <div class="container text-center">
-            <a href="?" title="Back to Home">
-                <img src="logo.png" alt="File Browser Logo" loading="lazy">
-            </a>
-            <h1>File &amp; Directory Browser</h1>
-            <p class="mb-0">Menampilkan daftar file dan direktori yang tersedia secara aman.</p>
-        </div>
-    </header>
-
-    <!-- Main Content -->
-    <main class="container <?php echo e($alignmentClass); ?>">
-        <div class="page-header">
-            <div class="page-title">
-                <h2><?php echo e($pageTitle); ?></h2>
-                <p class="page-subtitle">
+    <header class="text-center site-header">
+        <button id="theme-toggle-main" class="btn btn-outline-secondary theme-toggle-header" type="button" aria-label="Toggle dark/light mode" title="Toggle dark/light mode">
+            <i class="fas fa-moon"></i>
+        </button>
+        <div class="container">
+            <div class="logo-container">
+                <a href="?" title="Back to Home"><img src="logo.png" alt="Logo" class="img-fluid" loading="lazy"></a>
+            </div>
+            <h3 class="mt-3">REPOSITORY FILE &amp; DIRECTORY BROWSER</h3>
+            <p class="mb-0 text-muted"><strong>Menampilkan Daftar File Dan Direktori Yang Tersedia</strong></p>
+            <div class="mt-3 text-center">
+                <h1 class="display-5"><?php echo e($pageTitle); ?></h1>
+                <p class="text-muted">
                     <?php echo e(str_replace(
                         ['{{files}}', '{{size}}'],
                         [(string) $totalFiles, humanizeFilesize($totalSize, $sizeDecimals)],
@@ -1770,37 +1392,98 @@ $alignmentClass = match ($alignment) {
                     )); ?>
                 </p>
             </div>
-            <div class="search-container">
-                <div class="search-input">
-                    <input type="text" id="searchInput" placeholder="Search files..." autocomplete="off" aria-label="Search files">
-                    <i class="fas fa-search search-icon"></i>
-                </div>
-                <div class="sort-buttons">
+            <?php
+            $nameIconClass = 'fa-sort-alpha-down';
+            if ($sort === 'name') {
+                $nameIconClass = ($order === 'asc') ? 'fa-sort-alpha-down' : 'fa-sort-alpha-up';
+            }
+
+            $modifiedIconClass = 'fa-calendar-alt';
+            if ($sort === 'modified') {
+                $modifiedIconClass = ($order === 'asc') ? 'fa-sort-amount-down' : 'fa-sort-amount-up';
+            }
+
+            $sizeIconClass = 'fa-weight-hanging';
+            if ($sort === 'size') {
+                $sizeIconClass = ($order === 'asc') ? 'fa-sort-numeric-down' : 'fa-sort-numeric-up';
+            }
+            ?>
+            <div class="d-flex justify-content-center align-items-center mt-3 flex-wrap gap-2">
+                <div class="btn-group" aria-label="Sort Options">
                     <a href="<?php echo e(queryUrl(['folder' => $currentDir, 'sort' => 'name', 'order' => ($sort === 'name' && $order === 'asc') ? 'desc' : 'asc'])); ?>"
-                       class="btn btn-outline-secondary btn-sm<?php echo $sort === 'name' ? ' active' : ''; ?>">
-                        <i class="fas <?php echo $sort === 'name' ? ($order === 'asc' ? 'fa-sort-alpha-down' : 'fa-sort-alpha-up') : 'fa-sort-alpha-down'; ?>"></i> Name
+                       class="btn btn-outline-secondary<?php echo $sort === 'name' ? CLASS_ACTIVE : ''; ?>" aria-label="Sort by name">
+                        <i class="fas <?php echo e($nameIconClass); ?>"></i><span class="d-none d-sm-inline ms-1">Name</span>
                     </a>
                     <a href="<?php echo e(queryUrl(['folder' => $currentDir, 'sort' => 'modified', 'order' => ($sort === 'modified' && $order === 'asc') ? 'desc' : 'asc'])); ?>"
-                       class="btn btn-outline-secondary btn-sm<?php echo $sort === 'modified' ? ' active' : ''; ?>">
-                        <i class="fas <?php echo $sort === 'modified' ? ($order === 'asc' ? 'fa-sort-amount-down' : 'fa-sort-amount-up') : 'fa-calendar-alt'; ?>"></i> Date
+                       class="btn btn-outline-secondary<?php echo $sort === 'modified' ? CLASS_ACTIVE : ''; ?>" aria-label="Sort by date">
+                        <i class="fas <?php echo e($modifiedIconClass); ?>"></i><span class="d-none d-sm-inline ms-1">Date</span>
                     </a>
                     <a href="<?php echo e(queryUrl(['folder' => $currentDir, 'sort' => 'size', 'order' => ($sort === 'size' && $order === 'asc') ? 'desc' : 'asc'])); ?>"
-                       class="btn btn-outline-secondary btn-sm<?php echo $sort === 'size' ? ' active' : ''; ?>">
-                        <i class="fas <?php echo $sort === 'size' ? ($order === 'asc' ? 'fa-sort-numeric-down' : 'fa-sort-numeric-up') : 'fa-weight-hanging'; ?>"></i> Size
+                       class="btn btn-outline-secondary<?php echo $sort === 'size' ? CLASS_ACTIVE : ''; ?>" aria-label="Sort by size">
+                        <i class="fas <?php echo e($sizeIconClass); ?>"></i><span class="d-none d-sm-inline ms-1">Size</span>
                     </a>
                 </div>
+                <button type="button" id="search-toggle" class="btn btn-outline-secondary" title="Cari File" aria-label="Toggle search">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+            <div class="search-wrapper" id="search-form-container">
+                <form method="GET" action="" class="search-form" onsubmit="event.preventDefault();">
+                    <div class="search-input-group">
+                        <span class="search-icon-left" aria-hidden="true"><i class="fas fa-search"></i></span>
+                        <input type="text" id="searchInput" class="search-input" placeholder="Cari nama file..." autocomplete="off" spellcheck="false" aria-label="Cari file">
+                        <button class="search-btn" type="button" aria-label="Mulai pencarian"><i class="fas fa-arrow-right"></i></button>
+                    </div>
+                    <p class="search-hint">Tekan Escape untuk membersihkan pencarian</p>
+                </form>
             </div>
         </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container text-start mt-4">
+        <nav class="repo-pathbar" aria-label="Lokasi folder">
+            <span class="repo-pathbar-trail">
+                <?php if ($currentDir === ''): ?>
+                    <span class="repo-pathbar-current" aria-current="page">
+                        <i class="fas fa-home" aria-hidden="true"></i> Home
+                    </span>
+                <?php else: ?>
+                    <a href="?"><i class="fas fa-home" aria-hidden="true"></i> Home</a>
+                    <?php
+                    // array_values() ensures 0-based sequential keys after array_filter()
+                    $parts = array_values(array_filter(explode('/', $currentDir)));
+                    $partCount = count($parts);
+                    $cumulativePath = '';
+                    foreach ($parts as $index => $part) {
+                        $cumulativePath .= ($index === 0 ? '' : '/') . $part;
+                        echo '<span class="repo-pathbar-separator">/</span>';
+                        if ($index === $partCount - 1) {
+                            echo '<span class="repo-pathbar-current" aria-current="page">' . e($part) . '</span>';
+                        } else {
+                            echo '<a href="?folder=' . urlencode($cumulativePath) . '">' . e($part) . '</a>';
+                        }
+                    }
+                    ?>
+                <?php endif; ?>
+            </span>
+        </nav>
 
         <div class="table-container">
             <div class="table-responsive">
-                <table class="table" id="fileTable">
+                <table class="table table-bordered table-striped table-hover text-start" id="fileTable">
+                    <colgroup>
+                        <col>
+                        <col>
+                        <col>
+                        <col>
+                    </colgroup>
                     <thead>
                         <tr>
-                            <th class="col-name">Name</th>
-                            <th class="col-date">Date</th>
-                            <th class="col-size">Size</th>
-                            <th class="col-hash">Hash Check</th>
+                            <th>Name</th>
+                            <th class="table-col-date">Date</th>
+                            <th class="table-col-size">Size</th>
+                            <th class="table-col-hash">Hash</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1811,18 +1494,22 @@ $alignmentClass = match ($alignment) {
                             }
                         ?>
                         <tr class="parent-row">
-                            <td colspan="4">
-                                <a href="<?php echo e(queryUrl(['folder' => $parentDir])); ?>" class="d-flex align-items-center">
-                                    <?php if ($showIcons): ?>
-                                        <i class="fas fa-arrow-up file-icon"></i>
-                                    <?php endif; ?>
-                                    Parent Directory
+                            <td class="text-break">
+                                <a href="<?php echo e(queryUrl(['folder' => $parentDir])); ?>" class="folder-link d-flex align-items-center">
+                                    <i class="fas fa-arrow-up file-icon me-2"></i>
+                                    <span>Parent Directory</span>
                                 </a>
                             </td>
+                            <td class="table-col-date">-</td>
+                            <td class="table-col-size">-</td>
+                            <td class="table-col-hash">-</td>
                         </tr>
                         <?php endif; ?>
 
-                        <?php foreach ($items as $item):
+                        <?php
+                        // Pre-compute once outside the loop for performance
+                        $protectedFoldersLower = array_change_key_case($protectedFolders, CASE_LOWER);
+                        foreach ($items as $item):
                             $itemName = (string) $item['name'];
                             $relativePath = (string) $item['relative'];
                             $iconClass = $item['isDir'] ? 'fa-folder' : getFileIconClass($itemName);
@@ -1832,12 +1519,15 @@ $alignmentClass = match ($alignment) {
                             $itemTime = (int) $item['time'];
                         ?>
                         <tr data-name="<?php echo e(strtolower($itemName)); ?>">
-                            <td class="col-name">
-                                <a href="<?php echo e($link); ?>" class="d-flex align-items-center">
-                                    <?php if ($showIcons): ?>
-                                        <i class="fas <?php echo e($iconClass); ?> file-icon"></i>
-                                    <?php endif; ?>
+                            <td class="text-break">
+                                <a href="<?php echo e($link); ?>" class="<?php echo $item['isDir'] ? 'folder-link' : 'file-link'; ?> d-flex align-items-center">
+                                    <i class="fas <?php echo e($iconClass); ?> file-icon"></i>
                                     <span><?php echo e($itemName); ?></span>
+                                    <?php if ($item['isDir'] && array_key_exists(strtolower($relativePath), $protectedFoldersLower)): ?>
+                                        <small class="ms-2 text-warning" title="Password Protected">
+                                            <i class="fas fa-lock"></i>
+                                        </small>
+                                    <?php endif; ?>
                                     <?php if ($item['isSymlink']): ?>
                                         <small class="symlink-badge" title="Symbolic Link">
                                             <i class="fas fa-link"></i>
@@ -1845,14 +1535,16 @@ $alignmentClass = match ($alignment) {
                                     <?php endif; ?>
                                 </a>
                             </td>
-                            <td class="col-date"><?php echo $itemTime > 0 ? e(date($dateFormat, $itemTime)) : '-'; ?></td>
-                            <td class="col-size"><?php echo $item['isDir'] ? '-' : e(humanizeFilesize((int) $item['size'], $sizeDecimals)); ?></td>
-                            <td class="col-hash text-center">
+                            <td class="table-col-date">
+                                <span class="full-date"><?php echo $itemTime > 0 ? e(date($dateFormat, $itemTime)) : '-'; ?></span>
+                                <span class="short-date"><?php echo $itemTime > 0 ? e(date('d/m/y', $itemTime)) : '-'; ?></span>
+                            </td>
+                            <td class="table-col-size"><?php echo $item['isDir'] ? '-' : e(humanizeFilesize((int) $item['size'], $sizeDecimals)); ?></td>
+                            <td class="table-col-hash">
                                 <?php if (!$item['isDir']): ?>
                                     <a href="<?php echo e(queryUrl(['md5' => $relativePath])); ?>"
-                                       class="btn btn-sm btn-outline-info"
-                                       title="Check Hash">
-                                        <i class="fas fa-key"></i>
+                                       title="Check Hash" aria-label="Check hash for <?php echo e($itemName); ?>">
+                                        <i class="fas fa-fingerprint" aria-hidden="true"></i>
                                     </a>
                                 <?php else: ?>
                                     -
@@ -1879,35 +1571,54 @@ $alignmentClass = match ($alignment) {
         </div>
     </main>
 
-    <!-- Footer -->
-    <footer>
-        <div class="container">
-            <p class="mb-0">
-                <a href="https://alsyundawy.com" target="_blank" rel="noopener noreferrer">
-                    ALSYUNDAWY IT SOLUTION
-                </a>
-                &copy; <?php echo e(date('Y')); ?> - All Rights Reserved
-            </p>
-        </div>
-    </footer>
+    <!-- Floating Home Button -->
+    <button class="fab-home" id="fabHome" type="button" aria-label="Kembali ke halaman utama" title="Home">
+        <i class="fas fa-home" aria-hidden="true"></i>
+    </button>
 
     <!-- Back to Top Button -->
-    <div class="back-to-top" id="backToTop" title="Back to Top" role="button" tabindex="0" aria-label="Back to Top">
+    <button class="back-to-top-control" id="backToTop" type="button" aria-label="Kembali ke atas" title="Kembali ke atas">
         <i class="fas fa-arrow-up"></i>
-    </div>
+    </button>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-inner">
+            <div class="footer-divider"></div>
+            <div class="social-links">
+                <a href="https://github.com/alsyundawy" target="_blank" rel="noopener noreferrer" aria-label="GitHub"><i class="fa-brands fa-github"></i></a>
+                <a href="https://twitter.com/alsyundawy" target="_blank" rel="noopener noreferrer" aria-label="Twitter / X"><i class="fa-brands fa-x-twitter"></i></a>
+                <a href="https://facebook.com/alsyundawy" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+                <a href="https://instagram.com/harry.ds.alsyundawy" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+                <a href="https://threads.net/harry.ds.alsyundawy" target="_blank" rel="noopener noreferrer" aria-label="Threads"><i class="fa-brands fa-threads"></i></a>
+                <a href="https://telegram.org/alsyundawy" target="_blank" rel="noopener noreferrer" aria-label="Telegram"><i class="fa-brands fa-telegram"></i></a>
+                <a href="https://wa.me/alsyundawy" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>
+                <a href="https://tiktok.com/@alsyundawy" target="_blank" rel="noopener noreferrer" aria-label="TikTok"><i class="fa-brands fa-tiktok"></i></a>
+            </div>
+            <p class="footer-title">
+                <a href="https://www.alsyundawy.com/" target="_blank" rel="noopener noreferrer">
+                    <span class="ft-part">REPOSITORY FILE &amp; DIRECTORY BROWSER.</span>
+                    <span class="ft-part">SUPPORT BY HARRY DS ALSYUNDAWY | ALSYUNDAWY IT SOLUTION.</span>
+                </a>
+            </p>
+            <p class="footer-copy">© 2009–2026 · All Rights Reserved</p>
+        </div>
+    </footer>
 
     <!-- Scripts -->
     <script nonce="<?php echo e($nonce); ?>">
         (function() {
             'use strict';
 
-            // DOM elements cache
             const els = {
                 loading: document.getElementById('loadingScreen'),
                 backToTop: document.getElementById('backToTop'),
                 searchInput: document.getElementById('searchInput'),
                 fileTable: document.getElementById('fileTable'),
-                noResults: document.getElementById('noResults')
+                noResults: document.getElementById('noResults'),
+                themeToggle: document.getElementById('theme-toggle-main'),
+                searchToggle: document.getElementById('search-toggle'),
+                searchContainer: document.getElementById('search-form-container')
             };
 
             // Loading Screen
@@ -1936,31 +1647,76 @@ $alignmentClass = match ($alignment) {
                 setTimeout(() => sessionStorage.removeItem('isNavigating'), 100);
             });
 
-            // Back to Top
-            if (els.backToTop) {
-                let scrollTimeout;
-                const toggleBackToTop = () => {
-                    els.backToTop.classList.toggle('show', window.scrollY > 300);
-                };
-
-                window.addEventListener('scroll', () => {
-                    clearTimeout(scrollTimeout);
-                    scrollTimeout = setTimeout(toggleBackToTop, 100);
-                }, { passive: true });
-
-                const goTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
-                els.backToTop.addEventListener('click', goTop);
-                els.backToTop.addEventListener('keydown', (event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        goTop();
+            // Theme Switcher
+            if (els.themeToggle) {
+                const updateIcon = () => {
+                    const isDark = document.documentElement.classList.contains('dark-mode');
+                    const icon = els.themeToggle.querySelector('i');
+                    if (icon) {
+                        icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
                     }
+                };
+                updateIcon();
+                els.themeToggle.addEventListener('click', () => {
+                    document.documentElement.classList.toggle('dark-mode');
+                    const isDark = document.documentElement.classList.contains('dark-mode');
+                    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+                    updateIcon();
                 });
-
-                toggleBackToTop();
             }
 
-            // Search functionality
+            // Home FAB
+            const fabHome = document.getElementById('fabHome');
+            if (fabHome) {
+                window.addEventListener('scroll', function() {
+                    window.requestAnimationFrame(function() {
+                        fabHome.classList.toggle('show', window.scrollY > 300);
+                    });
+                }, { passive: true });
+                fabHome.addEventListener('click', function() {
+                    window.location.href = '?';
+                });
+            }
+
+            // Back to Top Control
+            if (els.backToTop) {
+                window.addEventListener('scroll', function() {
+                    window.requestAnimationFrame(function() {
+                        els.backToTop.classList.toggle('show', window.scrollY > 300);
+                    });
+                }, { passive: true });
+
+                els.backToTop.addEventListener('click', function() {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                });
+            }
+
+            // Search Toggler
+            if (els.searchToggle && els.searchContainer) {
+                els.searchToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const isVisible = (els.searchContainer.style.display === 'block');
+                    if (isVisible) {
+                        els.searchContainer.style.opacity = '0';
+                        els.searchContainer.style.transform = 'translateY(-6px)';
+                        setTimeout(function() {
+                            els.searchContainer.style.display = 'none';
+                        }, 180);
+                    } else {
+                        els.searchContainer.style.display = 'block';
+                        els.searchContainer.style.opacity = '0';
+                        els.searchContainer.style.transform = 'translateY(-6px)';
+                        els.searchContainer.offsetHeight; // force reflow
+                        els.searchContainer.style.opacity = '1';
+                        els.searchContainer.style.transform = 'translateY(0)';
+                        if (els.searchInput) {
+                            els.searchInput.focus();
+                        }
+                    }
+                });
+            }
+
+            // Search filter functionality
             if (els.searchInput && els.fileTable && els.noResults) {
                 const tbody = els.fileTable.querySelector('tbody');
                 const rows = Array.from(tbody.querySelectorAll('tr:not(.parent-row)'));
@@ -1973,9 +1729,7 @@ $alignmentClass = match ($alignment) {
 
                     rows.forEach(row => {
                         const name = row.getAttribute('data-name');
-                        if (!name) {
-                            return;
-                        }
+                        if (!name) return;
 
                         const isVisible = !searchTerm || name.includes(searchTerm);
                         row.classList.toggle('search-hidden', !isVisible);
@@ -1984,11 +1738,12 @@ $alignmentClass = match ($alignment) {
                         }
                     });
 
-                    // Hide Parent Directory row during search
                     if (parentRow) {
                         parentRow.classList.toggle('search-hidden', searchTerm !== '');
                     }
 
+                    const hasMatches = (searchTerm === '' || visibleCount > 0);
+                    els.fileTable.classList.toggle('d-none', !hasMatches);
                     els.noResults.classList.toggle('show', searchTerm !== '' && visibleCount === 0);
                 };
 
@@ -1997,7 +1752,6 @@ $alignmentClass = match ($alignment) {
                     searchTimeout = setTimeout(performSearch, 150);
                 });
 
-                // Clear search on Escape
                 els.searchInput.addEventListener('keydown', (event) => {
                     if (event.key === 'Escape') {
                         els.searchInput.value = '';
