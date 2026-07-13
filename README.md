@@ -15,6 +15,18 @@
 
 [![Star History Chart](https://api.star-history.com/svg?repos=alsyundawy/File-Directory-Browser&type=Date)](https://www.star-history.com/#alsyundawy/File-Directory-Browser&Date)
 
+## Star History
+
+<!-- markdownlint-disable MD033 -->
+<a href="https://star-history.com/#alsyundawy/File-Directory-Browser&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=alsyundawy/File-Directory-Browser&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=alsyundawy/File-Directory-Browser&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=alsyundawy/File-Directory-Browser&type=Date" />
+ </picture>
+</a>
+<!-- markdownlint-enable MD033 -->
+
 ---
 
 ### Bahasa Indonesia
@@ -26,6 +38,8 @@
 **File & Directory Browser** is a security-hardened, highly responsive, and lightweight single-file PHP script designed to display file and directory lists. It features real-time search without reloading, instant sorting, file hash verification (CRC32, MD5, SHA-1) with a local caching mechanism, strict protection against path traversal attacks, bcrypt-secured password-protected folders, and a premium glassmorphic user interface built using Bootstrap 5 and Font Awesome 6.
 
 ---
+
+### User Interface
 
 **New**
 
