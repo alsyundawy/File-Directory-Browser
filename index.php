@@ -631,7 +631,7 @@ function getDocAndMiscIcons(): array
         'mobi'       => 'fa-book',
         'azw3'       => 'fa-book',
         'djvu'       => 'fa-book',
-        'exe'        => 'fa-cogs',
+        'exe'        => 'fa-file-code',
         'dll'        => 'fa-cogs',
         'so'         => 'fa-cogs',
         'dylib'      => 'fa-cogs',
