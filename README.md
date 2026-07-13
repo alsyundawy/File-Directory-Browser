@@ -113,6 +113,24 @@ $protectedFolders = [
 
 ## Riwayat Perubahan / Changelog
 
+### Version 3.5 (14 Juli 2026 / July 14, 2026) — Premium Glassmorphic Dark Theme & Style Customization
+
+- **🎨 UI/UX — Premium Glassmorphic Dark Theme:**
+  - Mengimplementasikan tema *Premium Glassmorphic Dark* modern dengan latar belakang *radial-gradient* tetap yang indah dan elegan.
+  - Implemented a modern Premium Glassmorphic Dark Theme featuring a beautiful fixed radial-gradient background.
+- **🎨 UI/UX — Custom Link & Icon Styling:**
+  - Menyesuaikan gaya tautan folder/file dan ikon di mode terang maupun gelap sesuai spesifikasi desain.
+  - Custom-styled folder/file links and icons in both Light and Dark modes to match design specifications.
+- **🎨 UI/UX — Breadcrumb Open Folder Icon:**
+  - Mengintegrasikan ikon folder terbuka (`fa-folder-open`) pada navigasi breadcrumb, sekaligus mempertahankan ikon folder tertutup standar pada tampilan daftar untuk konsistensi visual.
+  - Integrated the open folder icon (`fa-folder-open`) in breadcrumb navigation while retaining standard closed folder icons in the file list view for visual consistency.
+- **📱 UI/UX — Mobile Responsiveness:**
+  - Mengoptimalkan *media query* mobile untuk memperkecil seluruh teks, padding, dan elemen header agar tampilan sangat kompak dan responsif di semua resolusi perangkat.
+  - Optimized mobile media queries to scale down all text, paddings, and header elements for a highly compact and responsive layout across all device resolutions.
+- **🐛 Bug Fix — Infinite 301 Redirect Loop:**
+  - Memperbaiki loop redirect 301 tak terbatas pada parameter folder berlapis yang mengandung karakter `%2F` (slash ter-encode) yang sebelumnya menyebabkan *spinner loader* tidak berhenti.
+  - Resolved an infinite 301 redirect loop on nested folder parameters containing URL-encoded slashes (`%2F`) which previously caused the spinner loader to get stuck indefinitely.
+
 ### Version 3.4 (14 Juli 2026 / July 14, 2026) — URL Sanitizer, Rate-Limit, Quality Audits & UI Enhancement
 
 - **🔒 Security, Quality Audits & Rate-Limiting:**
