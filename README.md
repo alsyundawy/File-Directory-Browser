@@ -89,7 +89,7 @@ $showHiddenFiles        = false;                 // Menyembunyikan/menampilkan f
 $dateFormat             = 'd-M-Y H:i';           // Format tanggal modifikasi file
 $allowExternalSymlinks  = false;                 // Mengizinkan symlink ke luar root
 $enableHashCache        = true;                  // Mengaktifkan penyimpanan cache hash file
-$passwordSessionLifetime = 3600;                 // Durasi sesi login folder (detik)
+$passwordSessionLifetime = 2400;                 // Durasi sesi login folder (detik)
 ```
 
 ### Konfigurasi Proteksi Folder / Folder Password Configuration
@@ -108,6 +108,41 @@ $protectedFolders = [
 ---
 
 ## Riwayat Perubahan / Changelog
+
+### Version 3.4 (14 Juli 2026 / July 14, 2026) — URL Sanitizer, Rate-Limit, Quality Audits & UI Enhancement
+
+- **🔒 Security, Quality Audits & Rate-Limiting:**
+  - Menambahkan pembatasan percobaan login salah (`$loginMaxAttempts = 5`) dan durasi penguncian login (`$loginLockSeconds = 300`) untuk proteksi folder dengan tampilan hitung mundur (countdown) secara real-time.
+  - Memperbaiki kualitas kode dan menghilangkan peringatan IDE dengan menyederhanakan struktur logic `if` bersarang yang redundan.
+  - Memindahkan `ob_end_flush()` dari bagian akhir skrip ke `register_shutdown_function()` terpusat agar buffer selalu dibilas secara otomatis dan aman saat skrip berakhir.
+  - Added brute-force/rate-limit protection to folder passwords using login attempt limits (`$loginMaxAttempts = 5`) and temporary lockout timers (`$loginLockSeconds = 300`) with real-time countdown display.
+  - Merged nested conditional `if` statements to resolve code analyzer warnings.
+  - Relocated `ob_end_flush()` to a centralized `register_shutdown_function()` to ensure proper output buffer cleaning upon termination.
+- **⚡ Performance Optimization:**
+  - Melakukan minifikasi (*minify*) pada seluruh kode JavaScript internal (termasuk modul peralihan tema, hitung mundur penguncian, pencarian, dan visual halaman) untuk memperkecil ukuran berkas dan meningkatkan kecepatan muat.
+  - Minified all internal JavaScript blocks (Theme Switchers, Lock Countdown, Search and lists controller) to minimize payload size and improve execution speed.
+- **🎨 UI/UX & Dark Mode Contrast Fix:**
+  - Memperbaiki tulisan buram pada halaman Hash Check di mode gelap dengan menetapkan warna teks `h2` menggunakan `var(--text-primary)` dan `.text-muted`/`.text-secondary` agar kontras dan terbaca jelas.
+  - Resolved blurry text styling in dark mode on the Hash Check page by setting `h2` heading color via `var(--text-primary)` and updating `.text-muted`/`.text-secondary` rules to use crisp high-contrast colors.
+- **🔗 Clean URL Routing:**
+  - Mengubah parameter query penelusuran folder dari `folder` menjadi `berkas`.
+  - Menghapus segment `index.php` pada URL serta mengarahkan otomatis (HTTP 301) permintaan lama `/index.php?folder=XXX` menjadi `/?berkas=XXX` untuk SEO dan navigasi yang lebih bersih.
+  - Swapped directory browsing query parameter from `folder` to `berkas`.
+  - Stripped `index.php` path segment from URLs and implemented automatic redirects (HTTP 301) from `/index.php?folder=XXX` to `/?berkas=XXX` for cleaner SEO routing.
+  - Mengubah penanganan routing agar karakter `%2F` dalam parameter query `berkas` otomatis diterjemahkan kembali menjadi `/` (`?berkas=folder1/subfolder1`), dan mengarahkan otomatis jika diakses dengan format URL-encoded.
+  - Decoded `%2F` in query parameters back to slashes to display clean folder paths (e.g. `?berkas=folder1/subfolder1`), redirecting requests containing URL-encoded `%2F` to clean slash representations.
+- **✨ Modern Hash Check UI & Clipboard Support:**
+  - Merancang ulang tampilan pengecekan hash (CRC32, MD5, SHA-1) dengan kotak/card yang lebih ringkas dan ramping, ikon perisai yang elegan, serta menambahkan tombol salin cepat (Copy to Clipboard) yang interaktif dan sepenuhnya patuh terhadap kebijakan CSP (Content-Security-Policy).
+  - Modernized the Hash Check overlay with a narrower card layout, elegant shield badge styling, and CSP-compliant, one-click clipboard copying buttons with visual success feedback.
+- **Footer Encoding Fix:**
+  - Memperbaiki pengkodean karakter hak cipta pada footer (`&copy; 2009&ndash;2026 &middot; All Rights Reserved`) guna menghindari kendala rendering simbol di berbagai tipe browser.
+  - Replaced copyright character symbols in the footer with robust HTML entities to prevent font encoding glitches.
+- **✨ Sorting Interactive Improvement:**
+  - Menghilangkan visual terpilih/aktif (default selection state) pada tombol sortir secara bawaan. Pilihan sort hanya akan aktif jika diklik secara eksplisit, dan cukup menampilkan hover style saat disorot saja.
+  - Removed default highlighted/active selection state from sorting buttons. Active highlight only appears upon explicit query sort requests; otherwise, buttons display standard interactive hover effects.
+- **🛠️ Font Awesome Maintenance:**
+  - Menyederhanakan pemetaan ikon Font Awesome dengan memusatkan seluruh relasi ekstensi file ke dalam satu struktur array statis di fungsi `getFileIconClass()`, menghapus 6 sub-fungsi pendukung untuk mempermudah pemeliharaan kode jangka panjang.
+  - Consolidated and simplified Font Awesome mappings into a single static array in `getFileIconClass()`, removing six helper subfunctions to maximize readability and ease of maintenance.
 
 ### Version 3.3 (13 Juli 2026 / July 13, 2026) — Strict CSP Compliance, Readability Overhaul & Clean Layout
 

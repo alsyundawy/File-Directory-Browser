@@ -32,25 +32,6 @@
  *    - Endpoint hash tetap kompatibel dengan parameter lama ?md5=relative/path.
  *
  *  Changelog:
- *    2026-07-14 (v3.5 - Premium Glassmorphic Dark Theme & Style Customization):
- *      - UI/UX: Implemented modern Premium Glassmorphic Dark Theme with a beautiful fixed radial-gradient.
- *      - UI/UX: Custom-styled folder/file links and icons in both light and dark modes to match specifications.
- *      - UI/UX: Integrated the open folder icon (fa-folder-open) in the breadcrumbs navigation bar, keeping standard closed folder icons for list view consistency.
- *      - UI/UX: Optimized mobile media queries to scale down all text, paddings, and header elements for a highly compact and responsive look across all device resolutions.
- *      - BUG FIX: Resolved an infinite 301 redirect loop on nested folder parameters containing URL-encoded slashes (%2F) which previously caused the spinner loader to get stuck.
- *    2026-07-14 (v3.4 - URL Sanitizer, Rate-Limit, Quality Audits & UI Enhancement):
- *      - SECURITY: Added login attempts limit ($loginMaxAttempts = 5) and lockout timer ($loginLockSeconds = 300) for folder protection with real-time countdown.
- *      - SECURITY: Merged nested if-statements to resolve quality issues and remove IDE warnings.
- *      - SECURITY & PERFORMANCE: Moved ob_end_flush() from the bottom of the script to a centralized register_shutdown_function().
- *      - PERFORMANCE: Minified all internal JavaScript blocks (Theme Switchers, Lock Countdown, Search and Page lists functionality).
- *      - UI/UX: Swapped "folder" parameter for "berkas" to improve SEO and user routing clarity.
- *      - UI/UX: Removed "index.php" from paths and implemented automatic redirect (301) for cleaner URLs.
- *      - UI/UX: Redirect and query paths now unescape %2F back to slashes for cleaner parameter appearance (e.g. ?berkas=folder1/subfolder1).
- *      - UI/UX: Modernized the Hash Check page styling with a narrower card layout, a clean shield icon wrapper, and high-performance, CSP-compliant, one-click hash clipboard copying.
- *      - UI/UX: Fixed copyright character entity coding in the footer to avoid encoding issues in specific browser environments.
- *      - UI/UX: Removed the default active selection styling on sort buttons; they now only highlight when explicitly queried, showing standard hover effect otherwise.
- *      - UI/UX: Resolved blurry text rendering in dark mode on the Hash Check page by applying high-contrast CSS.
- *      - MAINTENANCE: Simplified and flattened the Font Awesome file icon mapping, eliminating redundant subfunctions (getDocumentIcons(), etc.) for easier maintenance.
  *    2026-07-13 (v3.3 - Strict CSP Compliance & Readability Overhaul):
  *      - SECURITY: Hapus sisa inline style="..." pada div, table, dan col untuk kepatuhan CSP 100% tanpa 'unsafe-inline'.
  *      - SECURITY: Tambahkan nonce CSP ke style tag dalam noscript tag.
@@ -100,7 +81,7 @@
  *  Created By : HARRY DERTIN SUTISNA
  *  Contact    : Email: alsyundawy@gmail.com | Handle: @alsyundawy
  *  Created On : 26 June 2025
- *  Updated On : 14 July 2026
+ *  Updated On : 13 July 2026
  *  Timezone   : Asia/Jakarta
  *  License    : MIT License
  * ==============================================================================
@@ -109,7 +90,6 @@
 declare(strict_types=1);
 
 ob_start();
-register_shutdown_function('ob_end_flush');
 
 // =================== RUNTIME / VERSION GUARD ===================
 if (version_compare(PHP_VERSION, '8.0', '<')) {
@@ -123,46 +103,6 @@ foreach ($requiredExtensions as $extension) {
         http_response_code(500);
         exit("Required PHP extension '{$extension}' is not installed.");
     }
-}
-
-// =================== URL NORMALIZER / REDIRECTOR ===================
-$requestUri = $_SERVER['REQUEST_URI'] ?? '/';
-$parsedUrl = parse_url($requestUri);
-$path = $parsedUrl['path'] ?? '/';
-$queryParams = [];
-if (isset($parsedUrl['query'])) {
-    parse_str($parsedUrl['query'], $queryParams);
-}
-
-$needsRedirect = false;
-
-// Remove index.php from path
-if (basename($path) === 'index.php') {
-    $path = dirname($path);
-    if ($path === '\\' || $path === '.') {
-        $path = '/';
-    } else {
-        $path = rtrim(str_replace('\\', '/', $path), '/') . '/';
-    }
-    $needsRedirect = true;
-}
-
-// Convert 'folder' parameter to 'berkas'
-if (isset($queryParams['folder'])) {
-    $queryParams['berkas'] = $queryParams['folder'];
-    unset($queryParams['folder']);
-    $needsRedirect = true;
-}
-
-if ($needsRedirect) {
-    $queryString = '';
-    if (!empty($queryParams)) {
-        $queryString = '?' . http_build_query($queryParams, '', '&', PHP_QUERY_RFC3986);
-        $queryString = str_ireplace('%2F', '/', $queryString);
-    }
-    $newUrl = $path . $queryString;
-    header('Location: ' . $newUrl, true, 301);
-    exit;
 }
 
 // =================== CONFIGURATION ===================
@@ -187,7 +127,7 @@ define('CLASS_ACTIVE', ' active');
 // -- KONFIGURASI PROTEKSI FOLDER --
 // PENTING: Password HARUS berupa hash bcrypt dari password_hash('teks_asli', PASSWORD_BCRYPT).
 // Jangan menyimpan password plaintext di sini.
-// Cara generate: php -r "echo password_hash('password_anda', PASSWORD_BCRYPT);"
+// Cara generate: echo password_hash('password_anda', PASSWORD_BCRYPT);
 $protectedFolders = [
     // 'nama-folder' => password_hash('password_anda', PASSWORD_BCRYPT),
     // Hash dari password 'drakor' — ganti dengan hash password Anda sendiri:
@@ -197,9 +137,7 @@ $protectedFolders = [
 ];
 
 // Batas waktu sesi login folder dalam detik
-$passwordSessionLifetime = 2400;
-$loginMaxAttempts        = 5;
-$loginLockSeconds        = 300;
+$passwordSessionLifetime = 3600;
 
 // Initialize timezone
 date_default_timezone_set($timezone);
@@ -363,9 +301,7 @@ function queryUrl(array $params): string
         return '?';
     }
 
-    $queryString = http_build_query($cleanParams, '', '&', PHP_QUERY_RFC3986);
-    $queryString = str_ireplace('%2F', '/', $queryString);
-    return '?' . $queryString;
+    return '?' . http_build_query($cleanParams, '', '&', PHP_QUERY_RFC3986);
 }
 
 function getSafeHost(): string
@@ -422,7 +358,7 @@ function sendSecurityHeaders(string $nonce): void
         "style-src 'self' 'nonce-{$nonce}' https://fonts.googleapis.com https://cdn.jsdelivr.net https://unpkg.com",
         "font-src 'self' https://fonts.gstatic.com https://unpkg.com data:",
         "script-src 'self' 'nonce-{$nonce}' https://cdn.jsdelivr.net",
-        "connect-src 'self' https://cdn.jsdelivr.net https://unpkg.com",
+        "connect-src 'self'",
     ];
 
     if (isHttpsRequest()) {
@@ -495,28 +431,21 @@ function getFirstLockedFolder(string $path, array $protectedFolders, array $unlo
 
 function renderPasswordPage(string $lockedFolder, string|null $error, string $nonce): void
 {
-    global $loginMaxAttempts, $loginLockSeconds;
     $csrfToken = $_SESSION['csrf'] ?? '';
-
-    $postLockedFolderLower = strtolower($lockedFolder);
-    $attemptsInfo = $_SESSION['login_attempts'][$postLockedFolderLower] ?? null;
-    $isLocked = false;
-    $lockTimeRemaining = 0;
-
-    if ($attemptsInfo !== null && $attemptsInfo['count'] >= $loginMaxAttempts) {
-        $elapsed = time() - $attemptsInfo['last_attempt'];
-        if ($elapsed < $loginLockSeconds) {
-            $isLocked = true;
-            $lockTimeRemaining = $loginLockSeconds - $elapsed;
-        }
-    }
     ?>
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <script nonce="<?php echo e($nonce); ?>">(function(){(localStorage.getItem("theme")||"light")==="dark"&&document.documentElement.classList.add("dark-mode")})();</script>
+        <script nonce="<?php echo e($nonce); ?>">
+            (function() {
+                const theme = localStorage.getItem('theme') || 'light';
+                if (theme === 'dark') {
+                    document.documentElement.classList.add('dark-mode');
+                }
+            })();
+        </script>
         <link rel="icon" type="image/x-icon" href="favicon.ico">
         <title>Folder Terproteksi - Password Required</title>
         <meta name="robots" content="noindex,nofollow">
@@ -525,7 +454,7 @@ function renderPasswordPage(string $lockedFolder, string|null $error, string $no
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
         <link rel="stylesheet" href="https://unpkg.com/@fortawesome/fontawesome-free@6.7.2/css/all.min.css" integrity="sha384-nRgPTkuX86pH8yjPJUAFuASXQSSl2/bBUiNV47vSYpKFxHJhbcrGnmlYpYJMeD7a" crossorigin="anonymous">
-        <style nonce="<?php echo e($nonce); ?>">:root{--bg-color:#f8fafc;--card-bg:rgba(255,255,255,0.7);--card-border:rgba(0,0,0,0.08);--primary-glow:linear-gradient(135deg,#6366f1 0%,#4f46e5 100%);--text-primary:#0f172a;--text-secondary:#475569;--border-color:rgba(0,0,0,0.06);--glass-blur:blur(16px);--accent-color:#4f46e5;--accent-hover:#3730a3}.dark-mode{--bg-color:#080c14;--card-bg:rgba(15,23,42,0.65);--card-border:rgba(255,255,255,0.08);--primary-glow:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);--text-primary:#f8fafc;--text-secondary:#cbd5e1;--border-color:rgba(255,255,255,0.06);--accent-color:#6366f1;--accent-hover:#818cf8}.dark-mode .text-muted{color:#cbd5e1 !important}.dark-mode .text-secondary{color:#cbd5e1 !important}body{font-family:'Inter',sans-serif;background-color:var(--bg-color);background-image:radial-gradient(at 0% 0%,rgba(79,70,229,0.1) 0px,transparent 50%),radial-gradient(at 100% 100%,rgba(124,58,237,0.1) 0px,transparent 50%);background-attachment:fixed;color:var(--text-primary);min-height:100vh;display:flex;align-items:center;justify-content:center;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}.dark-mode body{background-color:#080c14 !important;background-image:radial-gradient(at 0% 0%,rgba(79,70,229,0.12) 0px,transparent 50%),radial-gradient(at 100% 100%,rgba(124,58,237,0.12) 0px,transparent 50%)}h4{font-family:'Lora',serif;font-weight:600}.card{background:var(--card-bg) !important;backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border:1px solid var(--card-border);border-radius:12px;padding:2.5rem;box-shadow:0 10px 30px -10px rgba(0,0,0,0.25);width:100%;max-width:450px}.dark-mode .card{box-shadow:0 10px 30px -10px rgba(0,0,0,0.5)}.form-control{background:rgba(255,255,255,0.04);border:1px solid var(--card-border);color:var(--text-primary);border-radius:8px;padding:0.75rem 1rem;transition:all 0.3s ease}.form-control:focus{background:rgba(255,255,255,0.08);border-color:var(--accent-color);box-shadow:0 0 0 3px rgba(99,102,241,0.25);color:var(--text-primary)}.btn-primary{background:var(--primary-glow);border:none;color:white;font-weight:600;padding:0.75rem;border-radius:8px;transition:all 0.2s ease;box-shadow:0 4px 12px rgba(99,102,241,0.3)}.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 15px rgba(99,102,241,0.4)}.btn-secondary{background:rgba(0,0,0,0.05);border:1px solid var(--card-border);color:var(--text-primary);padding:0.75rem;border-radius:8px;font-weight:500;transition:all 0.2s ease}.dark-mode .btn-secondary{background:rgba(255,255,255,0.06)}.btn-secondary:hover{background:rgba(0,0,0,0.1);border-color:var(--text-secondary);color:var(--text-primary)}.dark-mode .btn-secondary:hover{background:rgba(255,255,255,0.12);color:white}.alert-danger{background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#fca5a5;border-radius:8px}#theme-toggle-pw.theme-toggle-header{position:fixed;top:20px;right:20px;width:40px;height:40px;border-radius:50%;background:var(--card-bg);border:1px solid var(--card-border);color:var(--text-primary);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:1000;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:0 4px 6px -1px rgba(0,0,0,0.1)}#theme-toggle-pw.theme-toggle-header:hover{transform:scale(1.1) rotate(15deg);border-color:var(--accent-color);box-shadow:0 0 12px rgba(99,102,241,0.4)}</style>
+        <style nonce="<?php echo e($nonce); ?>">:root{--bg-color:#f8fafc;--card-bg:rgba(255,255,255,0.7);--card-border:rgba(0,0,0,0.08);--primary-glow:linear-gradient(135deg,#6366f1 0%,#4f46e5 100%);--text-primary:#0f172a;--text-secondary:#475569;--border-color:rgba(0,0,0,0.06);--glass-blur:blur(16px);--accent-color:#4f46e5;--accent-hover:#3730a3}.dark-mode{--bg-color:#080c14;--card-bg:rgba(15,23,42,0.65);--card-border:rgba(255,255,255,0.08);--primary-glow:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);--text-primary:#f8fafc;--text-secondary:#cbd5e1;--border-color:rgba(255,255,255,0.06);--accent-color:#6366f1;--accent-hover:#818cf8}.dark-mode .text-muted{color:#cbd5e1 !important}.dark-mode .text-secondary{color:#cbd5e1 !important}body{font-family:'Inter',sans-serif;background-color:var(--bg-color);background-image:radial-gradient(at 0% 0%,rgba(79,70,229,0.1) 0px,transparent 50%),radial-gradient(at 100% 100%,rgba(124,58,237,0.1) 0px,transparent 50%);background-attachment:fixed;color:var(--text-primary);min-height:100vh;display:flex;align-items:center;justify-content:center;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}.dark-mode body{background-image:radial-gradient(at 0% 0%,rgba(79,70,229,0.12) 0px,transparent 50%),radial-gradient(at 100% 100%,rgba(124,58,237,0.12) 0px,transparent 50%)}h4{font-family:'Lora',serif;font-weight:600}.card{background:var(--card-bg) !important;backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border:1px solid var(--card-border);border-radius:12px;padding:2.5rem;box-shadow:0 10px 30px -10px rgba(0,0,0,0.25);width:100%;max-width:450px}.dark-mode .card{box-shadow:0 10px 30px -10px rgba(0,0,0,0.5)}.form-control{background:rgba(255,255,255,0.04);border:1px solid var(--card-border);color:var(--text-primary);border-radius:8px;padding:0.75rem 1rem;transition:all 0.3s ease}.form-control:focus{background:rgba(255,255,255,0.08);border-color:var(--accent-color);box-shadow:0 0 0 3px rgba(99,102,241,0.25);color:var(--text-primary)}.btn-primary{background:var(--primary-glow);border:none;color:white;font-weight:600;padding:0.75rem;border-radius:8px;transition:all 0.2s ease;box-shadow:0 4px 12px rgba(99,102,241,0.3)}.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 15px rgba(99,102,241,0.4)}.btn-secondary{background:rgba(0,0,0,0.05);border:1px solid var(--card-border);color:var(--text-primary);padding:0.75rem;border-radius:8px;font-weight:500;transition:all 0.2s ease}.dark-mode .btn-secondary{background:rgba(255,255,255,0.06)}.btn-secondary:hover{background:rgba(0,0,0,0.1);border-color:var(--text-secondary);color:var(--text-primary)}.dark-mode .btn-secondary:hover{background:rgba(255,255,255,0.12);color:white}.alert-danger{background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#fca5a5;border-radius:8px}#theme-toggle-pw.theme-toggle-header{position:fixed;top:20px;right:20px;width:40px;height:40px;border-radius:50%;background:var(--card-bg);border:1px solid var(--card-border);color:var(--text-primary);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:1000;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:0 4px 6px -1px rgba(0,0,0,0.1)}#theme-toggle-pw.theme-toggle-header:hover{transform:scale(1.1) rotate(15deg);border-color:var(--accent-color);box-shadow:0 0 12px rgba(99,102,241,0.4)}</style>
     </head>
     <body>
         <button class="btn btn-outline-secondary theme-toggle-header" id="theme-toggle-pw" title="Toggle Theme" aria-label="Toggle Theme">
@@ -537,12 +466,8 @@ function renderPasswordPage(string $lockedFolder, string|null $error, string $no
                 <h4 class="mb-1">Folder Terproteksi</h4>
                 <p class="text-muted small">Folder <code class="text-info"><?php echo e($lockedFolder); ?></code> memerlukan password untuk diakses.</p>
             </div>
-
-            <?php if ($isLocked): ?>
-                <div class="alert alert-danger py-2 text-center small mb-3">
-                    <i class="fas fa-lock me-1"></i> Terlalu banyak percobaan salah.<br>Silakan coba lagi dalam <span id="lock-countdown"><?php echo $lockTimeRemaining; ?></span> detik.
-                </div>
-            <?php elseif ($error !== null): ?>
+            
+            <?php if ($error !== null): ?>
                 <div class="alert alert-danger py-2 text-center small mb-3">
                     <i class="fas fa-exclamation-circle me-1"></i> <?php echo e($error); ?>
                 </div>
@@ -553,10 +478,10 @@ function renderPasswordPage(string $lockedFolder, string|null $error, string $no
                 <input type="hidden" name="locked_folder" value="<?php echo e($lockedFolder); ?>">
                 <div class="mb-3">
                     <label for="folder_password" class="form-label small text-muted">Masukkan Password</label>
-                    <input type="password" class="form-control" id="folder_password" name="folder_password" placeholder="Password" required autofocus <?php echo $isLocked ? 'disabled' : ''; ?>>
+                    <input type="password" class="form-control" id="folder_password" name="folder_password" placeholder="Password" required autofocus>
                 </div>
                 <div class="d-grid gap-2">
-                    <button type="submit" class="btn btn-primary" <?php echo $isLocked ? 'disabled' : ''; ?>>
+                    <button type="submit" class="btn btn-primary">
                         <i class="fas fa-unlock me-2"></i> Buka Proteksi
                     </button>
                     <a href="?" class="btn btn-secondary text-center">
@@ -565,10 +490,27 @@ function renderPasswordPage(string $lockedFolder, string|null $error, string $no
                 </div>
             </form>
         </div>
-        <script nonce="<?php echo e($nonce); ?>">(function(){const e=document.getElementById("theme-toggle-pw");if(e){const n=()=>{const t=document.documentElement.classList.contains("dark-mode"),o=e.querySelector("i");o&&(o.className=t?"fas fa-sun":"fas fa-moon")};n(),e.addEventListener("click",()=>{document.documentElement.classList.toggle("dark-mode");const t=document.documentElement.classList.contains("dark-mode");localStorage.setItem("theme",t?"dark":"light"),n()})}})();</script>
-        <?php if ($isLocked): ?>
-        <script nonce="<?php echo e($nonce); ?>">(function(){var n=<?php echo (int) $lockTimeRemaining; ?>,t=document.getElementById("lock-countdown"),o=setInterval(function(){n--,t&&(t.textContent=n),n<=0&&(clearInterval(o),window.location.reload())},1e3)})();</script>
-        <?php endif; ?>
+        <script nonce="<?php echo e($nonce); ?>">
+            (function() {
+                const themeToggle = document.getElementById('theme-toggle-pw');
+                if (themeToggle) {
+                    const updateIcon = () => {
+                        const isDark = document.documentElement.classList.contains('dark-mode');
+                        const icon = themeToggle.querySelector('i');
+                        if (icon) {
+                            icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+                        }
+                    };
+                    updateIcon();
+                    themeToggle.addEventListener('click', () => {
+                        document.documentElement.classList.toggle('dark-mode');
+                        const isDark = document.documentElement.classList.contains('dark-mode');
+                        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+                        updateIcon();
+                    });
+                }
+            })();
+        </script>
     </body>
     </html>
     <?php
@@ -588,192 +530,206 @@ function humanizeFilesize(int|float $bytes, int $decimals = 0): string
     return sprintf('%.' . max(0, $decimals) . 'f %s', $bytes, $units[$factor]);
 }
 
-function getDocAndMiscIcons(): array
+function getDocumentIcons(): array
 {
     return [
-        // Documents
-        'pdf'        => 'fa-file-pdf',
-        'doc'        => 'fa-file-word',
-        'docx'       => 'fa-file-word',
-        'docm'       => 'fa-file-word',
-        'xls'        => 'fa-file-excel',
-        'xlsx'       => 'fa-file-excel',
-        'xlsm'       => 'fa-file-excel',
-        'xlsb'       => 'fa-file-excel',
-        'ppt'        => 'fa-file-powerpoint',
-        'pptx'       => 'fa-file-powerpoint',
-        'pptm'       => 'fa-file-powerpoint',
-        'txt'        => 'fa-file-alt',
-        'odt'        => 'fa-file-alt',
-        'ods'        => 'fa-file-excel',
-        'odp'        => 'fa-file-powerpoint',
-        'rtf'        => 'fa-file-alt',
-        'ps'         => 'fa-file-alt',
-        'epub'       => 'fa-file-alt',
-        'pages'      => 'fa-file-alt',
-        'numbers'    => 'fa-file-excel',
-        'key'        => 'fa-file-powerpoint',
-        'md'         => 'fa-file-contract',
-
-        // Miscellaneous
-        'csv'        => 'fa-file-csv',
-        'tsv'        => 'fa-file-csv',
-        'parquet'    => 'fa-file-csv',
-        'feather'    => 'fa-file-csv',
-        'orc'        => 'fa-file-csv',
-        'avro'       => 'fa-file-csv',
-        'env'        => 'fa-file-cog',
-        'conf'       => 'fa-file-cog',
-        'cfg'        => 'fa-file-cog',
-        'ini'        => 'fa-file-cog',
-        'toml'       => 'fa-file-cog',
-        'properties' => 'fa-file-cog',
-        'mobi'       => 'fa-book',
-        'azw3'       => 'fa-book',
-        'djvu'       => 'fa-book',
-        'exe'        => 'fa-cogs',
-        'dll'        => 'fa-cogs',
-        'so'         => 'fa-cogs',
-        'dylib'      => 'fa-cogs',
-        'ttf'        => 'fa-font',
-        'otf'        => 'fa-font',
-        'woff'       => 'fa-font',
-        'woff2'      => 'fa-font',
-        'log'        => 'fa-file-alt',
-        'db'         => 'fa-database',
-        'sqlite'     => 'fa-database',
-        'sqlite3'    => 'fa-database',
-        'bak'        => 'fa-history',
-        'tmp'        => 'fa-history',
-        'temp'       => 'fa-history',
-        'torrent'    => 'fa-magnet',
-        'vcf'        => 'fa-address-card',
-        'ics'        => 'fa-calendar',
-        'tex'        => 'fa-file-alt',
-        'bib'        => 'fa-file-alt',
-        'stl'        => 'fa-cube',
-        'obj'        => 'fa-cube',
-        'fbx'        => 'fa-cube',
-        'step'       => 'fa-cube',
-        'iges'       => 'fa-cube',
+        'pdf' => 'fa-file-pdf',
+        'doc' => 'fa-file-word',
+        'docx' => 'fa-file-word',
+        'docm' => 'fa-file-word',
+        'xls' => 'fa-file-excel',
+        'xlsx' => 'fa-file-excel',
+        'xlsm' => 'fa-file-excel',
+        'xlsb' => 'fa-file-excel',
+        'ppt' => 'fa-file-powerpoint',
+        'pptx' => 'fa-file-powerpoint',
+        'pptm' => 'fa-file-powerpoint',
+        'txt' => 'fa-file-alt',
+        'odt' => 'fa-file-alt',
+        'ods' => 'fa-file-excel',
+        'odp' => 'fa-file-powerpoint',
+        'rtf' => 'fa-file-alt',
+        'ps' => 'fa-file-alt',
+        'epub' => 'fa-file-alt',
+        'pages' => 'fa-file-alt',
+        'numbers' => 'fa-file-excel',
+        'key' => 'fa-file-powerpoint',
+        'md' => 'fa-file-contract',
     ];
 }
 
-function getMediaAndCodeIcons(): array
+function getImageIcons(): array
 {
     return [
-        // Images
-        'jpg'        => 'fa-file-image',
-        'jpeg'       => 'fa-file-image',
-        'jfif'       => 'fa-file-image',
-        'png'        => 'fa-file-image',
-        'gif'        => 'fa-file-image',
-        'bmp'        => 'fa-file-image',
-        'svg'        => 'fa-file-image',
-        'webp'       => 'fa-file-image',
-        'tiff'       => 'fa-file-image',
-        'tif'        => 'fa-file-image',
-        'ico'        => 'fa-file-image',
-        'heic'       => 'fa-file-image',
-        'heif'       => 'fa-file-image',
-        'avif'       => 'fa-file-image',
-        'psd'        => 'fa-file-image',
-        'ai'         => 'fa-file-image',
-        'eps'        => 'fa-file-image',
-        'raw'        => 'fa-file-image',
-        'cr2'        => 'fa-file-image',
-        'nef'        => 'fa-file-image',
+        'jpg' => 'fa-file-image',
+        'jpeg' => 'fa-file-image',
+        'jfif' => 'fa-file-image',
+        'png' => 'fa-file-image',
+        'gif' => 'fa-file-image',
+        'bmp' => 'fa-file-image',
+        'svg' => 'fa-file-image',
+        'webp' => 'fa-file-image',
+        'tiff' => 'fa-file-image',
+        'tif' => 'fa-file-image',
+        'ico' => 'fa-file-image',
+        'heic' => 'fa-file-image',
+        'heif' => 'fa-file-image',
+        'avif' => 'fa-file-image',
+        'psd' => 'fa-file-image',
+        'ai' => 'fa-file-image',
+        'eps' => 'fa-file-image',
+        'raw' => 'fa-file-image',
+        'cr2' => 'fa-file-image',
+        'nef' => 'fa-file-image',
+    ];
+}
 
-        // Audio & Video
-        'mp3'        => 'fa-file-audio',
-        'wav'        => 'fa-file-audio',
-        'ogg'        => 'fa-file-audio',
-        'flac'       => 'fa-file-audio',
-        'aac'        => 'fa-file-audio',
-        'm4a'        => 'fa-file-audio',
-        'wma'        => 'fa-file-audio',
-        'midi'       => 'fa-file-audio',
-        'mid'        => 'fa-file-audio',
-        'opus'       => 'fa-file-audio',
-        'aiff'       => 'fa-file-audio',
-        'amr'        => 'fa-file-audio',
-        'mp4'        => 'fa-file-video',
-        'avi'        => 'fa-file-video',
-        'mov'        => 'fa-file-video',
-        'wmv'        => 'fa-file-video',
-        'mkv'        => 'fa-file-video',
-        'webm'       => 'fa-file-video',
-        'flv'        => 'fa-file-video',
-        'mpeg'       => 'fa-file-video',
-        'mpg'        => 'fa-file-video',
-        '3gp'        => 'fa-file-video',
-        'm4v'        => 'fa-file-video',
-        'ogv'        => 'fa-file-video',
-        'vob'        => 'fa-file-video',
+function getAudioVideoIcons(): array
+{
+    return [
+        'mp3' => 'fa-file-audio',
+        'wav' => 'fa-file-audio',
+        'ogg' => 'fa-file-audio',
+        'flac' => 'fa-file-audio',
+        'aac' => 'fa-file-audio',
+        'm4a' => 'fa-file-audio',
+        'wma' => 'fa-file-audio',
+        'midi' => 'fa-file-audio',
+        'mid' => 'fa-file-audio',
+        'opus' => 'fa-file-audio',
+        'aiff' => 'fa-file-audio',
+        'amr' => 'fa-file-audio',
+        'mp4' => 'fa-file-video',
+        'avi' => 'fa-file-video',
+        'mov' => 'fa-file-video',
+        'wmv' => 'fa-file-video',
+        'mkv' => 'fa-file-video',
+        'webm' => 'fa-file-video',
+        'flv' => 'fa-file-video',
+        'mpeg' => 'fa-file-video',
+        'mpg' => 'fa-file-video',
+        '3gp' => 'fa-file-video',
+        'm4v' => 'fa-file-video',
+        'ogv' => 'fa-file-video',
+        'vob' => 'fa-file-video',
+    ];
+}
 
-        // Archives
-        'zip'        => 'fa-file-archive',
-        'rar'        => 'fa-file-archive',
-        '7z'         => 'fa-file-archive',
-        'tar'        => 'fa-file-archive',
-        'gz'         => 'fa-file-archive',
-        'bz2'        => 'fa-file-archive',
-        'xz'         => 'fa-file-archive',
-        'zst'        => 'fa-file-archive',
-        'lz'         => 'fa-file-archive',
-        'lz4'        => 'fa-file-archive',
-        'iso'        => 'fa-file-archive',
-        'dmg'        => 'fa-file-archive',
-        'pkg'        => 'fa-file-archive',
-        'deb'        => 'fa-file-archive',
-        'rpm'        => 'fa-file-archive',
-        'apk'        => 'fa-file-archive',
-        'msi'        => 'fa-file-archive',
+function getArchiveIcons(): array
+{
+    return [
+        'zip' => 'fa-file-archive',
+        'rar' => 'fa-file-archive',
+        '7z' => 'fa-file-archive',
+        'tar' => 'fa-file-archive',
+        'gz' => 'fa-file-archive',
+        'bz2' => 'fa-file-archive',
+        'xz' => 'fa-file-archive',
+        'zst' => 'fa-file-archive',
+        'lz' => 'fa-file-archive',
+        'lz4' => 'fa-file-archive',
+        'iso' => 'fa-file-archive',
+        'dmg' => 'fa-file-archive',
+        'pkg' => 'fa-file-archive',
+        'deb' => 'fa-file-archive',
+        'rpm' => 'fa-file-archive',
+        'apk' => 'fa-file-archive',
+        'msi' => 'fa-file-archive',
+    ];
+}
 
-        // Code
-        'js'         => 'fa-file-code',
-        'jsx'        => 'fa-file-code',
-        'ts'         => 'fa-file-code',
-        'tsx'        => 'fa-file-code',
-        'css'        => 'fa-file-code',
-        'scss'       => 'fa-file-code',
-        'sass'       => 'fa-file-code',
-        'less'       => 'fa-file-code',
-        'html'       => 'fa-file-code',
-        'htm'        => 'fa-file-code',
-        'php'        => 'fa-file-code',
-        'py'         => 'fa-file-code',
-        'java'       => 'fa-file-code',
-        'class'      => 'fa-file-code',
-        'jar'        => 'fa-file-code',
-        'cpp'        => 'fa-file-code',
-        'c'          => 'fa-file-code',
-        'h'          => 'fa-file-code',
-        'hpp'        => 'fa-file-code',
-        'cs'         => 'fa-file-code',
-        'go'         => 'fa-file-code',
-        'rb'         => 'fa-file-code',
-        'sh'         => 'fa-file-code',
-        'bash'       => 'fa-file-code',
-        'zsh'        => 'fa-file-code',
-        'bat'        => 'fa-file-code',
-        'cmd'        => 'fa-file-code',
-        'ps1'        => 'fa-file-code',
-        'json'       => 'fa-file-code',
-        'yaml'       => 'fa-file-code',
-        'yml'        => 'fa-file-code',
-        'xml'        => 'fa-file-code',
-        'sql'        => 'fa-file-code',
-        'swift'      => 'fa-file-code',
-        'kt'         => 'fa-file-code',
-        'kts'        => 'fa-file-code',
-        'dart'       => 'fa-file-code',
-        'lua'        => 'fa-file-code',
-        'pl'         => 'fa-file-code',
-        'r'          => 'fa-file-code',
-        'rs'         => 'fa-file-code',
-        'groovy'     => 'fa-file-code',
-        'ipynb'      => 'fa-file-code',
+function getCodeIcons(): array
+{
+    return [
+        'js' => 'fa-file-code',
+        'jsx' => 'fa-file-code',
+        'ts' => 'fa-file-code',
+        'tsx' => 'fa-file-code',
+        'css' => 'fa-file-code',
+        'scss' => 'fa-file-code',
+        'sass' => 'fa-file-code',
+        'less' => 'fa-file-code',
+        'html' => 'fa-file-code',
+        'htm' => 'fa-file-code',
+        'php' => 'fa-file-code',
+        'py' => 'fa-file-code',
+        'java' => 'fa-file-code',
+        'class' => 'fa-file-code',
+        'jar' => 'fa-file-code',
+        'cpp' => 'fa-file-code',
+        'c' => 'fa-file-code',
+        'h' => 'fa-file-code',
+        'hpp' => 'fa-file-code',
+        'cs' => 'fa-file-code',
+        'go' => 'fa-file-code',
+        'rb' => 'fa-file-code',
+        'sh' => 'fa-file-code',
+        'bash' => 'fa-file-code',
+        'zsh' => 'fa-file-code',
+        'bat' => 'fa-file-code',
+        'cmd' => 'fa-file-code',
+        'ps1' => 'fa-file-code',
+        'json' => 'fa-file-code',
+        'yaml' => 'fa-file-code',
+        'yml' => 'fa-file-code',
+        'xml' => 'fa-file-code',
+        'sql' => 'fa-file-code',
+        'swift' => 'fa-file-code',
+        'kt' => 'fa-file-code',
+        'kts' => 'fa-file-code',
+        'dart' => 'fa-file-code',
+        'lua' => 'fa-file-code',
+        'pl' => 'fa-file-code',
+        'r' => 'fa-file-code',
+        'rs' => 'fa-file-code',
+        'groovy' => 'fa-file-code',
+        'ipynb' => 'fa-file-code',
+    ];
+}
+
+function getMiscIcons(): array
+{
+    return [
+        'csv' => 'fa-file-csv',
+        'tsv' => 'fa-file-csv',
+        'parquet' => 'fa-file-csv',
+        'feather' => 'fa-file-csv',
+        'orc' => 'fa-file-csv',
+        'avro' => 'fa-file-csv',
+        'env' => 'fa-file-cog',
+        'conf' => 'fa-file-cog',
+        'cfg' => 'fa-file-cog',
+        'ini' => 'fa-file-cog',
+        'toml' => 'fa-file-cog',
+        'properties' => 'fa-file-cog',
+        'mobi' => 'fa-book',
+        'azw3' => 'fa-book',
+        'djvu' => 'fa-book',
+        'exe' => 'fa-cogs',
+        'dll' => 'fa-cogs',
+        'so' => 'fa-cogs',
+        'dylib' => 'fa-cogs',
+        'ttf' => 'fa-font',
+        'otf' => 'fa-font',
+        'woff' => 'fa-font',
+        'woff2' => 'fa-font',
+        'log' => 'fa-file-alt',
+        'db' => 'fa-database',
+        'sqlite' => 'fa-database',
+        'sqlite3' => 'fa-database',
+        'bak' => 'fa-history',
+        'tmp' => 'fa-history',
+        'temp' => 'fa-history',
+        'torrent' => 'fa-magnet',
+        'vcf' => 'fa-address-card',
+        'ics' => 'fa-calendar',
+        'tex' => 'fa-file-alt',
+        'bib' => 'fa-file-alt',
+        'stl' => 'fa-cube',
+        'obj' => 'fa-cube',
+        'fbx' => 'fa-cube',
+        'step' => 'fa-cube',
+        'iges' => 'fa-cube',
     ];
 }
 
@@ -782,8 +738,12 @@ function getFileIconClass(string $filename): string
     static $iconMap = null;
     if ($iconMap === null) {
         $iconMap = array_merge(
-            getDocAndMiscIcons(),
-            getMediaAndCodeIcons()
+            getDocumentIcons(),
+            getImageIcons(),
+            getAudioVideoIcons(),
+            getArchiveIcons(),
+            getCodeIcons(),
+            getMiscIcons()
         );
     }
 
@@ -973,7 +933,14 @@ function renderHashPage(string $fileName, int $fileSize, array $hashData, string
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <script nonce="<?php echo e($nonce); ?>">(function(){(localStorage.getItem("theme")||"light")==="dark"&&document.documentElement.classList.add("dark-mode")})();</script>
+        <script nonce="<?php echo e($nonce); ?>">
+            (function() {
+                const theme = localStorage.getItem('theme') || 'light';
+                if (theme === 'dark') {
+                    document.documentElement.classList.add('dark-mode');
+                }
+            })();
+        </script>
         <link rel="icon" type="image/x-icon" href="favicon.ico">
         <title>Hash Check for <?php echo e($fileName); ?></title>
         <meta name="description" content="Verify file integrity with CRC32, MD5, and SHA-1 hash algorithms">
@@ -984,61 +951,35 @@ function renderHashPage(string $fileName, int $fileSize, array $hashData, string
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
         <link rel="stylesheet" href="https://unpkg.com/@fortawesome/fontawesome-free@6.7.2/css/all.min.css" integrity="sha384-nRgPTkuX86pH8yjPJUAFuASXQSSl2/bBUiNV47vSYpKFxHJhbcrGnmlYpYJMeD7a" crossorigin="anonymous">
-        <style nonce="<?php echo e($nonce); ?>">:root{--bg-color:#f8fafc;--card-bg:rgba(255,255,255,0.7);--card-border:rgba(0,0,0,0.08);--primary-glow:linear-gradient(135deg,#6366f1 0%,#4f46e5 100%);--text-primary:#0f172a;--text-secondary:#475569;--border-color:rgba(0,0,0,0.06);--glass-blur:blur(16px);--stripe-odd:rgba(0,0,0,0.015);--stripe-even:rgba(0,0,0,0.035);--accent-color:#4f46e5;--accent-hover:#3730a3}.dark-mode{--bg-color:#080c14;--card-bg:rgba(15,23,42,0.65);--card-border:rgba(255,255,255,0.08);--primary-glow:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);--text-primary:#f8fafc;--text-secondary:#cbd5e1;--border-color:rgba(255,255,255,0.06);--stripe-odd:rgba(255,255,255,0.015);--stripe-even:rgba(255,255,255,0.035);--accent-color:#6366f1;--accent-hover:#818cf8}.dark-mode .text-muted{color:var(--text-secondary) !important}.dark-mode .text-secondary{color:var(--text-secondary) !important}body{font-family:'Inter',sans-serif;background-color:var(--bg-color);background-image:radial-gradient(at 0% 0%,rgba(79,70,229,0.1) 0px,transparent 50%),radial-gradient(at 100% 100%,rgba(124,58,237,0.1) 0px,transparent 50%);background-attachment:fixed;color:var(--text-primary);min-height:100vh;display:flex;align-items:center;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}.dark-mode body{background-color:#080c14 !important;background-image:radial-gradient(at 0% 0%,rgba(79,70,229,0.12) 0px,transparent 50%),radial-gradient(at 100% 100%,rgba(124,58,237,0.12) 0px,transparent 50%)}h2{font-family:'Lora',serif;font-weight:600;color:var(--text-primary)}.dark-mode h2{color:var(--text-primary) !important}.card{background:var(--card-bg) !important;backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border:1px solid var(--card-border);border-radius:16px;padding:2rem;box-shadow:0 10px 40px -10px rgba(0,0,0,0.15);width:100%}.dark-mode .card{box-shadow:0 10px 40px -10px rgba(0,0,0,0.4)}.table{color:var(--text-primary) !important;--bs-table-bg:transparent !important;--bs-table-color:var(--text-primary) !important;margin-bottom:0}.table-striped>tbody>tr{color:var(--text-primary) !important}.table-striped>tbody>tr:nth-of-type(odd)>td,.table-striped>tbody>tr:nth-of-type(odd)>th{background-color:var(--stripe-odd) !important;color:var(--text-primary) !important}.table-striped>tbody>tr:nth-of-type(even)>td,.table-striped>tbody>tr:nth-of-type(even)>th{background-color:var(--stripe-even) !important;color:var(--text-primary) !important}.table td,.table th{border-color:var(--border-color) !important;padding:0.75rem 1rem;vertical-align:middle}.table th{font-weight:600;color:var(--text-secondary);width:120px;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px}.hash-value{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;word-break:break-all;color:var(--accent-color);font-size:0.85rem}.btn-copy-hash{background:none;border:none;padding:2px 6px;color:var(--text-secondary);transition:color 0.2s;cursor:pointer}.btn-copy-hash:hover{color:var(--accent-color)}.hash-icon-wrapper{background:rgba(99,102,241,0.1);color:var(--accent-color);width:56px;height:56px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center}.btn-secondary{background:rgba(0,0,0,0.05);border:1px solid var(--card-border);color:var(--text-primary);transition:all 0.2s cubic-bezier(0.4,0,0.2,1);font-weight:500;padding:0.6rem 1.2rem}.dark-mode .btn-secondary{background:rgba(255,255,255,0.06)}.btn-secondary:hover{background:rgba(0,0,0,0.1);border-color:var(--text-secondary);color:var(--text-primary);transform:translateY(-1px)}.dark-mode .btn-secondary:hover{background:rgba(255,255,255,0.12);color:white}#theme-toggle-hash.theme-toggle-header{position:fixed;top:20px;right:20px;width:40px;height:40px;border-radius:50%;background:var(--card-bg);border:1px solid var(--card-border);color:var(--text-primary);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:1000;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:0 4px 6px -1px rgba(0,0,0,0.1)}#theme-toggle-hash.theme-toggle-header:hover{transform:scale(1.1) rotate(15deg);border-color:var(--accent-color);box-shadow:0 0 12px rgba(99,102,241,0.4)}</style>
+        <style nonce="<?php echo e($nonce); ?>">:root{--bg-color:#f8fafc;--card-bg:rgba(255,255,255,0.7);--card-border:rgba(0,0,0,0.08);--primary-glow:linear-gradient(135deg,#6366f1 0%,#4f46e5 100%);--text-primary:#0f172a;--text-secondary:#475569;--border-color:rgba(0,0,0,0.06);--glass-blur:blur(16px);--stripe-odd:rgba(0,0,0,0.015);--stripe-even:rgba(0,0,0,0.035);--accent-color:#4f46e5;--accent-hover:#3730a3}.dark-mode{--bg-color:#080c14;--card-bg:rgba(15,23,42,0.65);--card-border:rgba(255,255,255,0.08);--primary-glow:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);--text-primary:#f8fafc;--text-secondary:#cbd5e1;--border-color:rgba(255,255,255,0.06);--stripe-odd:rgba(255,255,255,0.015);--stripe-even:rgba(255,255,255,0.035);--accent-color:#6366f1;--accent-hover:#818cf8}body{font-family:'Inter',sans-serif;background-color:var(--bg-color);background-image:radial-gradient(at 0% 0%,rgba(79,70,229,0.1) 0px,transparent 50%),radial-gradient(at 100% 100%,rgba(124,58,237,0.1) 0px,transparent 50%);background-attachment:fixed;color:var(--text-primary);min-height:100vh;display:flex;align-items:center;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}.dark-mode body{background-image:radial-gradient(at 0% 0%,rgba(79,70,229,0.12) 0px,transparent 50%),radial-gradient(at 100% 100%,rgba(124,58,237,0.12) 0px,transparent 50%)}h2{font-family:'Lora',serif;font-weight:600}.card{background:var(--card-bg) !important;backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border:1px solid var(--card-border);border-radius:12px;padding:2.5rem;box-shadow:0 10px 30px -10px rgba(0,0,0,0.25);width:100%}.dark-mode .card{box-shadow:0 10px 30px -10px rgba(0,0,0,0.5)}.table{color:var(--text-primary) !important;--bs-table-bg:transparent !important;--bs-table-color:var(--text-primary) !important;margin-bottom:0}.table-striped>tbody>tr{color:var(--text-primary) !important}.table-striped>tbody>tr:nth-of-type(odd)>td,.table-striped>tbody>tr:nth-of-type(odd)>th{background-color:var(--stripe-odd) !important;color:var(--text-primary) !important}.table-striped>tbody>tr:nth-of-type(even)>td,.table-striped>tbody>tr:nth-of-type(even)>th{background-color:var(--stripe-even) !important;color:var(--text-primary) !important}.table td,.table th{border-color:var(--border-color) !important;padding:1.1rem;vertical-align:middle}.table th{font-weight:600;color:var(--text-secondary);width:160px}.hash-value{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;word-break:break-all;color:#007bff;font-size:0.95rem;letter-spacing:0.5px}.dark-mode .hash-value{color:#60a5fa}.btn-secondary{background:rgba(0,0,0,0.05);border:1px solid var(--card-border);color:var(--text-primary);transition:all 0.2s cubic-bezier(0.4,0,0.2,1);font-weight:500;padding:0.6rem 1.2rem}.dark-mode .btn-secondary{background:rgba(255,255,255,0.06)}.btn-secondary:hover{background:rgba(0,0,0,0.1);border-color:var(--text-secondary);color:var(--text-primary);transform:translateY(-1px)}.dark-mode .btn-secondary:hover{background:rgba(255,255,255,0.12);color:white}#theme-toggle-hash.theme-toggle-header{position:fixed;top:20px;right:20px;width:40px;height:40px;border-radius:50%;background:var(--card-bg);border:1px solid var(--card-border);color:var(--text-primary);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:1000;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:0 4px 6px -1px rgba(0,0,0,0.1)}#theme-toggle-hash.theme-toggle-header:hover{transform:scale(1.1) rotate(15deg);border-color:var(--accent-color);box-shadow:0 0 12px rgba(99,102,241,0.4)}</style>
     </head>
     <body>
         <button class="btn btn-outline-secondary theme-toggle-header" id="theme-toggle-hash" title="Toggle Theme" aria-label="Toggle Theme">
             <i class="fas fa-sun"></i>
         </button>
-        <div class="container py-5 d-flex justify-content-center align-items-center" style="min-height: 90vh;">
-            <div class="col-11 col-sm-10 col-md-8 col-lg-5">
+        <div class="container py-5 d-flex justify-content-center">
+            <div class="col-lg-8">
                 <div class="card">
-                    <div class="text-center mb-4">
-                        <div class="hash-icon-wrapper mb-3">
-                            <i class="fas fa-shield-halved fa-xl"></i>
-                        </div>
-                        <h2 class="h4 mb-1">Hash Check</h2>
-                        <p class="text-muted small text-truncate px-2 mb-0" title="<?php echo e($fileName); ?>"><?php echo e($fileName); ?></p>
-                    </div>
+                    <h2 class="mb-4 text-center">Hash Check</h2>
+                    <h5 class="text-muted mb-4 text-center"><?php echo e($fileName); ?></h5>
                     <div class="table-responsive rounded border border-secondary border-opacity-25 mb-4">
-                        <table class="table table-striped align-middle">
+                        <table class="table table-striped">
                             <tbody>
                                 <tr>
                                     <th>File Size</th>
-                                    <td><?php echo e($fileSizeHuman); ?> (<?php echo e(number_format($fileSize)); ?> B)</td>
+                                    <td><?php echo e($fileSizeHuman); ?> (<?php echo e(number_format($fileSize)); ?> bytes)</td>
                                 </tr>
                                 <tr>
                                     <th>CRC32</th>
-                                    <td>
-                                        <div class="d-flex align-items-center justify-content-between">
-                                            <span class="hash-value"><?php echo e($hashData['crc32']); ?></span>
-                                            <button class="btn-copy-hash" data-hash="<?php echo e($hashData['crc32']); ?>" title="Copy CRC32 hash">
-                                                <i class="far fa-copy"></i>
-                                            </button>
-                                        </div>
-                                    </td>
+                                    <td class="hash-value"><?php echo e($hashData['crc32']); ?></td>
                                 </tr>
                                 <tr>
                                     <th>MD5</th>
-                                    <td>
-                                        <div class="d-flex align-items-center justify-content-between">
-                                            <span class="hash-value"><?php echo e($hashData['md5']); ?></span>
-                                            <button class="btn-copy-hash" data-hash="<?php echo e($hashData['md5']); ?>" title="Copy MD5 hash">
-                                                <i class="far fa-copy"></i>
-                                            </button>
-                                        </div>
-                                    </td>
+                                    <td class="hash-value"><?php echo e($hashData['md5']); ?></td>
                                 </tr>
                                 <tr>
                                     <th>SHA-1</th>
-                                    <td>
-                                        <div class="d-flex align-items-center justify-content-between">
-                                            <span class="hash-value"><?php echo e($hashData['sha1']); ?></span>
-                                            <button class="btn-copy-hash" data-hash="<?php echo e($hashData['sha1']); ?>" title="Copy SHA-1 hash">
-                                                <i class="far fa-copy"></i>
-                                            </button>
-                                        </div>
-                                    </td>
+                                    <td class="hash-value"><?php echo e($hashData['sha1']); ?></td>
                                 </tr>
                             </tbody>
                         </table>
@@ -1052,7 +993,30 @@ function renderHashPage(string $fileName, int $fileSize, array $hashData, string
             </div>
         </div>
         <script nonce="<?php echo e($nonce); ?>" src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js" integrity="sha384-ndDqU0Gzau9qJ1lfW4pNLlhNTkCfHzAVBReH9diLvGRem5+R9g2FzA8ZGN954O5Q" crossorigin="anonymous"></script>
-        <script nonce="<?php echo e($nonce); ?>">(function(){var n=document.getElementById("btnBackHash");n&&n.addEventListener("click",function(){history.back()});const e=document.getElementById("theme-toggle-hash");if(e){const c=()=>{const t=document.documentElement.classList.contains("dark-mode"),o=e.querySelector("i");o&&(o.className=t?"fas fa-sun":"fas fa-moon")};c(),e.addEventListener("click",()=>{document.documentElement.classList.toggle("dark-mode");const t=document.documentElement.classList.contains("dark-mode");localStorage.setItem("theme",t?"dark":"light"),c()})}document.querySelectorAll(".btn-copy-hash").forEach(t=>{t.addEventListener("click",()=>{const c=t.getAttribute("data-hash");navigator.clipboard.writeText(c).then(()=>{const o=t.querySelector("i");o.className="fas fa-check text-success",setTimeout(()=>{o.className="far fa-copy"},1.5e3)})})})})();</script>
+        <script nonce="<?php echo e($nonce); ?>">
+            (function() {
+                // Back button
+                var btnBack = document.getElementById('btnBackHash');
+                if (btnBack) { btnBack.addEventListener('click', function() { history.back(); }); }
+
+                // Theme toggle
+                const themeToggle = document.getElementById('theme-toggle-hash');
+                if (themeToggle) {
+                    const updateIcon = () => {
+                        const isDark = document.documentElement.classList.contains('dark-mode');
+                        const icon = themeToggle.querySelector('i');
+                        if (icon) { icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon'; }
+                    };
+                    updateIcon();
+                    themeToggle.addEventListener('click', () => {
+                        document.documentElement.classList.toggle('dark-mode');
+                        const isDark = document.documentElement.classList.contains('dark-mode');
+                        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+                        updateIcon();
+                    });
+                }
+            })();
+        </script>
     </body>
     </html>
     <?php
@@ -1212,8 +1176,8 @@ $accessedDir = '';
 if (isset($_GET['md5'])) {
     $requestedFile = sanitizePath((string) $_GET['md5']);
     $accessedDir = sanitizePath(dirname($requestedFile));
-} elseif (isset($_GET['berkas'])) {
-    $accessedDir = sanitizePath((string) $_GET['berkas']);
+} elseif (isset($_GET['folder'])) {
+    $accessedDir = sanitizePath((string) $_GET['folder']);
 } else {
     $accessedDir = sanitizePath($browseDefault);
 }
@@ -1223,22 +1187,6 @@ $lockedFolder = getFirstLockedFolder($accessedDir, $protectedFolders, $unlockedS
 
 if ($lockedFolder !== null) {
     $loginError = null;
-    $postLockedFolderLower = strtolower($lockedFolder);
-
-    // Check if locked out
-    $attemptsInfo = $_SESSION['login_attempts'][$postLockedFolderLower] ?? null;
-    $isLocked = false;
-    $lockTimeRemaining = 0;
-    if ($attemptsInfo !== null && $attemptsInfo['count'] >= $loginMaxAttempts) {
-        $elapsed = time() - $attemptsInfo['last_attempt'];
-        if ($elapsed < $loginLockSeconds) {
-            $isLocked = true;
-            $lockTimeRemaining = $loginLockSeconds - $elapsed;
-        } else {
-            unset($_SESSION['login_attempts'][$postLockedFolderLower]);
-        }
-    }
-
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['folder_password'], $_POST['locked_folder'], $_POST['csrf_token'])) {
         $csrfSession = $_SESSION['csrf'] ?? '';
         if (!hash_equals($csrfSession, (string) $_POST['csrf_token'])) {
@@ -1251,37 +1199,21 @@ if ($lockedFolder !== null) {
         $passwordInput = (string) $_POST['folder_password'];
         $lowercaseProtectedFolders = array_change_key_case($protectedFolders, CASE_LOWER);
 
-        if ($isLocked) {
-            $loginError = 'Terlalu banyak percobaan salah. Login dikunci sementara.';
-        } elseif (array_key_exists($postLockedFolderLower, $lowercaseProtectedFolders)) {
+        if (array_key_exists($postLockedFolderLower, $lowercaseProtectedFolders)) {
             $storedHash = $lowercaseProtectedFolders[$postLockedFolderLower];
+            // password_verify() is timing-safe and supports bcrypt hashes
             if (password_verify($passwordInput, $storedHash)) {
-                // Success: clear attempts and set unlock
-                unset($_SESSION['login_attempts'][$postLockedFolderLower]);
                 $_SESSION['unlocked_folders'][$postLockedFolderLower] = time();
 
                 // Close session before redirect to persist data
                 session_write_close();
 
                 // Redirect back to the folder that was just unlocked
-                $redirectTarget = queryUrl(['berkas' => $accessedDir]);
+                $redirectTarget = queryUrl(['folder' => $accessedDir]);
                 header('Location: ' . $redirectTarget);
                 exit;
             } else {
-                // Increment login attempts
-                if (!isset($_SESSION['login_attempts'][$postLockedFolderLower])) {
-                    $_SESSION['login_attempts'][$postLockedFolderLower] = ['count' => 1, 'last_attempt' => time()];
-                } else {
-                    $_SESSION['login_attempts'][$postLockedFolderLower]['count']++;
-                    $_SESSION['login_attempts'][$postLockedFolderLower]['last_attempt'] = time();
-                }
-
-                $remainingAttempts = $loginMaxAttempts - $_SESSION['login_attempts'][$postLockedFolderLower]['count'];
-                if ($remainingAttempts <= 0) {
-                    $loginError = 'Terlalu banyak percobaan salah. Login dikunci selama ' . ($loginLockSeconds / 60) . ' menit.';
-                } else {
-                    $loginError = 'Password salah! Sisa percobaan: ' . $remainingAttempts . '.';
-                }
+                $loginError = 'Password salah!';
             }
         }
     }
@@ -1352,8 +1284,8 @@ $totalFiles = 0;
 $totalSize  = 0;
 $currentDir = sanitizePath($browseDefault);
 
-if ($browseDirectories && isset($_GET['berkas'])) {
-    $requested = sanitizePath((string) $_GET['berkas']);
+if ($browseDirectories && isset($_GET['folder'])) {
+    $requested = sanitizePath((string) $_GET['folder']);
     if (isDisplayableFolder($requested, $showHiddenFiles, $filesToHide)) {
         $realPath = resolveExistingPath($requested, $baseDir, $allowExternalSymlinks);
 
@@ -1370,8 +1302,9 @@ $items = listDirectory($currentDir, $showDirectories, $showHiddenFiles);
 
 // =================== SORTING FILES & DIRECTORIES ===================
 $allowedSorts = ['name', 'modified', 'size'];
-$isSortExplicit = isset($_GET['sort']) && in_array((string) $_GET['sort'], $allowedSorts, true);
-$sort = $isSortExplicit ? (string) $_GET['sort'] : 'name';
+$sort = isset($_GET['sort']) && in_array((string) $_GET['sort'], $allowedSorts, true)
+    ? (string) $_GET['sort']
+    : 'name';
 
 $order = isset($_GET['order']) && strtolower((string) $_GET['order']) === 'desc'
     ? 'desc'
@@ -1408,7 +1341,14 @@ $alignmentClass = match ($alignment) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script nonce="<?php echo e($nonce); ?>">(function(){(localStorage.getItem("theme")||"light")==="dark"&&document.documentElement.classList.add("dark-mode")})();</script>
+    <script nonce="<?php echo e($nonce); ?>">
+        (function() {
+            const theme = localStorage.getItem('theme') || 'light';
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark-mode');
+            }
+        })();
+    </script>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <title><?php echo e($pageTitle); ?></title>
     <meta name="description" content="Securely browse files and folders online. Custom responsive UI with light and dark mode toggling.">
@@ -1419,7 +1359,7 @@ $alignmentClass = match ($alignment) {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
     <link rel="stylesheet" href="https://unpkg.com/@fortawesome/fontawesome-free@6.7.2/css/all.min.css" integrity="sha384-nRgPTkuX86pH8yjPJUAFuASXQSSl2/bBUiNV47vSYpKFxHJhbcrGnmlYpYJMeD7a" crossorigin="anonymous">
-    <style nonce="<?php echo e($nonce); ?>">:root{--p:#007bff;--s:#475569;--h:#f8f9fa;--b:#dee2e6;--tp:#0f172a;--ts:#334155;--hc:#0f172a;--fi:#007bff;--bl:#fff;--bg-color:var(--bl);--card-bg:#fff;--card-border:var(--b);--text-primary:var(--tp);--text-secondary:var(--ts);--text-muted:var(--s);--border-color:var(--b);--hover-bg:rgba(0,123,255,0.04);--row-bg:#fff;--row-hover:#f1f5f9;--parent-row-bg:#f8fafc;--parent-row-hover:#f1f5f9;--shadow-sm:0 1px 2px 0 rgba(0,0,0,0.05);--shadow-md:0 10px 30px rgba(0,123,255,0.05);--shadow-lg:0 10px 15px -3px rgba(0,0,0,0.1);--accent-color:var(--p);--accent-hover:#0056b3}.dark-mode{--bl:#070c1e;--bg-color:#070c1e;--card-bg:rgba(13,27,56,0.4);--card-border:rgba(255,255,255,0.08);--text-primary:#f8fafc;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--border-color:rgba(255,255,255,0.08);--hover-bg:rgba(59,130,246,0.12);--h:rgba(13,27,56,0.25);--row-bg:rgba(13,27,56,0.2);--row-hover:rgba(13,27,56,0.45);--parent-row-bg:rgba(13,27,56,0.3);--parent-row-hover:rgba(59,130,246,0.15);--shadow-lg:0 8px 32px 0 rgba(0,0,0,0.37);--accent-color:#38bdf8;--accent-hover:#60a5fa}.dark-mode .text-muted{color:var(--text-muted) !important}.dark-mode .text-secondary{color:var(--text-secondary) !important}*{box-sizing:border-box}html,body{background-color:var(--bg-color);transition:background-color 0.3s ease,color 0.3s ease}body{font-family:'Inter',sans-serif;font-weight:400;font-size:1rem;line-height:1.7;color:var(--text-primary);margin:0;overflow-x:hidden}body.dark-mode{background:radial-gradient(circle at top,#0f1c3f 0%,#070c1e 100%) !important;background-attachment:fixed !important}h1,h2,h3,h4,h5,h6{font-family:'Lora',serif;font-weight:600;color:var(--hc);transition:color 0.3s ease}.dark-mode h1,.dark-mode h2,.dark-mode h3,.dark-mode h4,.dark-mode h5,.dark-mode h6{color:var(--text-primary)}a{text-decoration:none;color:var(--p);transition:all 0.2s ease}a:hover{color:#0052a3}.dark-mode a{color:#60a5fa}.dark-mode a:hover{color:#93c5fd}.container{max-width:1400px;padding:0 2rem;margin:0 auto;width:100%}.loading-screen{position:fixed;top:0;left:0;width:100%;height:100%;background:var(--bg-color);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 0.3s ease,visibility 0.3s ease}.loading-screen.fade-out{opacity:0;visibility:hidden}.spinner{width:45px;height:45px;border:3.5px solid var(--border-color);border-top-color:var(--p);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:1.25rem}.dark-mode .spinner{border-top-color:#60a5fa}.loading-text{font-size:0.8rem;font-weight:700;letter-spacing:0.15em;color:var(--text-secondary)}@keyframes spin{to{transform:rotate(360deg)}}header{padding:2rem 0;background-color:var(--bg-color);border-bottom:1px solid var(--border-color);position:relative;z-index:100;transition:background-color 0.3s ease,border-color 0.3s ease}.dark-mode header{background:rgba(7,12,30,0.45);border-bottom:1px solid rgba(255,255,255,0.08);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}.logo-container img{max-height:80px;width:auto;max-width:100%;transition:transform 0.3s ease,filter 0.3s ease;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.08))}@media(min-width:992px){.logo-container img{max-height:180px}}.logo-container img:hover{transform:scale(1.05) rotate(1deg)}.dark-mode .logo-container img{filter:drop-shadow(0 0 12px rgba(59,130,246,0.45))}header h3{font-size:1.5rem;margin:1rem 0 0.5rem;font-weight:700}header h1.display-5{font-size:clamp(1.25rem,4vw,2rem);word-break:break-all;font-weight:600;margin-top:1rem}.repo-pathbar{display:flex;align-items:center;flex-wrap:wrap;gap:.45rem;width:100%;margin:0 auto 1.5rem;padding:.9rem 1rem;color:#334155;background:#fff;border:1px solid rgba(0,123,255,.1);border-radius:14px;box-shadow:0 10px 30px rgba(0,123,255,.05);font-size:.92rem;line-height:1.45;transition:background-color 0.3s ease,border-color 0.3s ease,box-shadow 0.3s ease}.repo-pathbar-trail{display:inline-flex;align-items:center;flex-wrap:wrap;gap:.35rem;min-width:0}.repo-pathbar a,.repo-pathbar-current{display:inline-flex;align-items:center;gap:.38rem;max-width:100%;word-break:break-all;overflow-wrap:anywhere;font-weight:700}.repo-pathbar-current{color:#64748b}.repo-pathbar-separator{color:#94a3b8;font-weight:800;user-select:none}.dark-mode .repo-pathbar{background:rgba(13,27,56,0.55) !important;border:1px solid rgba(255,255,255,0.08) !important;box-shadow:0 8px 32px 0 rgba(0,0,0,0.3) !important;color:#cbd5e1;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}.dark-mode .repo-pathbar-current{color:#cbd5e1}.dark-mode .repo-pathbar-separator{color:rgba(255,255,255,0.4)}.btn-outline-secondary{color:var(--text-secondary);background-color:transparent;border-color:var(--card-border);transition:all 0.2s ease}.btn-outline-secondary:hover,.btn-outline-secondary.active{background-color:var(--hover-bg);border-color:var(--accent-color);color:var(--accent-color)}.table-container{border-radius:12px;overflow:hidden;box-shadow:var(--shadow-md);border:1px solid var(--border-color);background-color:var(--card-bg);margin-bottom:2.5rem;transition:border-color 0.3s ease,background-color 0.3s ease}.dark-mode .table-container{background:rgba(13,27,56,0.4) !important;border:1px solid rgba(255,255,255,0.08) !important;box-shadow:0 8px 32px 0 rgba(0,0,0,0.3) !important;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}.table-responsive{margin-bottom:0;border-radius:0;overflow-x:auto}.table{margin-bottom:0;font-size:0.95rem;width:100%;table-layout:fixed;border-collapse:collapse;border-color:var(--border-color)}.table th,.table td{padding:1rem .75rem;vertical-align:middle;border-color:var(--border-color);overflow:hidden;text-overflow:ellipsis}.dark-mode .table,.dark-mode .table th,.dark-mode .table td{border-color:rgba(255,255,255,0.06) !important}.table thead th{background:#212529 !important;color:#ffffff !important;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;font-size:0.75rem;border-color:#212529;transition:background-color 0.3s ease,border-color 0.3s ease}.dark-mode .table thead th{background:rgba(22,38,77,0.7) !important;color:var(--text-primary) !important;border-color:rgba(255,255,255,0.1) !important}.table-col-date{width:200px !important;min-width:200px !important;max-width:200px !important;white-space:nowrap}.table-col-size{width:115px !important;min-width:115px !important;max-width:115px !important;text-align:right}.table-col-hash{width:76px !important;min-width:76px !important;max-width:76px !important;text-align:center}.table-col-date .short-date{display:none}.table-col-date .full-date{display:inline}.table tbody tr:nth-of-type(odd)>td,.table tbody tr:nth-of-type(odd)>th{background-color:var(--card-bg) !important;color:var(--text-primary) !important}.table tbody tr:nth-of-type(even)>td,.table tbody tr:nth-of-type(even)>th{background-color:var(--h) !important;color:var(--text-primary) !important}.dark-mode .table tbody tr:nth-of-type(odd)>td,.dark-mode .table tbody tr:nth-of-type(odd)>th{background-color:rgba(13,27,56,0.2) !important;color:var(--text-primary) !important}.dark-mode .table tbody tr:nth-of-type(even)>td,.dark-mode .table tbody tr:nth-of-type(even)>th{background-color:rgba(13,27,56,0.45) !important;color:var(--text-primary) !important}.table-hover tbody tr{transition:background-color 0.2s ease,box-shadow 0.2s ease}.table-hover tbody tr:hover>td,.table-hover tbody tr:hover>th{background-color:#f1f5f9 !important}.dark-mode .table-hover tbody tr:hover>td,.dark-mode .table-hover tbody tr:hover>th{background-color:rgba(59,130,246,0.12) !important;box-shadow:inset 0 0 0 1px rgba(59,130,246,0.25)}.parent-row>td,.parent-row>th{background-color:var(--parent-row-bg) !important}.parent-row:hover>td,.parent-row:hover>th{background-color:var(--parent-row-hover) !important}.dark-mode .parent-row>td,.dark-mode .parent-row>th{background-color:rgba(13,27,56,0.3) !important}.dark-mode .parent-row:hover>td,.dark-mode .parent-row:hover>th{background-color:rgba(59,130,246,0.15) !important}.folder-link,.file-link{color:var(--accent-color) !important;font-weight:500;transition:color 0.15s ease}.folder-link:hover,.file-link:hover{color:var(--accent-hover) !important;text-decoration:underline}.file-icon{font-size:1.1rem;width:1.5rem;text-align:center;color:var(--accent-color);margin-right:0.5rem}.search-wrapper{padding:0.9rem 0 0.25rem;transition:all 0.3s ease}.search-form{max-width:520px;margin:0 auto}.search-input-group{display:flex;align-items:center;background:#fff;border:1.5px solid rgba(0,123,255,0.15);border-radius:50px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,0.06);transition:border-color .2s ease,box-shadow .2s ease,background-color 0.3s ease}.search-input-group:focus-within{border-color:rgba(0,123,255,0.45);box-shadow:0 4px 20px rgba(0,123,255,0.1),0 0 0 3px rgba(0,123,255,0.07)}.search-icon-left{padding:0 0 0 1.1rem;color:#c0c8d0;font-size:0.78rem;flex-shrink:0;pointer-events:none}.search-input{flex:1;border:0;background:transparent;padding:0.6rem 0.7rem;font-size:0.875rem;color:var(--text-primary);outline:none;min-width:0}.search-input::placeholder{color:#c0c8d0;font-style:italic}.search-btn{border:0;background:linear-gradient(135deg,var(--p) 0%,#0056b3 100%);color:#fff;padding:0 1.1rem;min-height:38px;cursor:pointer;font-size:0.78rem;border-radius:0 50px 50px 0;transition:background .2s;flex-shrink:0}.search-btn:hover{background:linear-gradient(135deg,#0056b3 0%,#003f88 100%)}.search-hint{font-size:0.7rem;color:#c0c8d0;margin:0.45rem 0 0;text-align:center;letter-spacing:0.01em}.dark-mode .search-input-group{background:rgba(13,27,56,0.55) !important;border-color:rgba(255,255,255,0.1) !important;backdrop-filter:blur(8px)}.dark-mode .search-input::placeholder{color:#475569}.dark-mode .search-icon-left{color:#475569}.dark-mode .search-hint{color:#475569}.search-hidden{display:none !important}.fab-home{position:fixed;bottom:8.75rem;right:1.5rem;width:2.25rem;height:2.25rem;background:linear-gradient(135deg,#6366f1 0%,#4f46e5 100%);color:#fff;border-radius:50%;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;visibility:hidden;z-index:2000;box-shadow:0 4px 14px rgba(99,102,241,.45),0 1px 3px rgba(0,0,0,.15);transition:all .25s cubic-bezier(.175,.885,.32,1.275)}.fab-home.show{opacity:1;visibility:visible}.fab-home:hover{transform:translateY(-4px) scale(1.1);box-shadow:0 8px 22px rgba(99,102,241,.55)}.fab-home i{font-size:.7rem}.dark-mode .fab-home{background:linear-gradient(135deg,#818cf8 0%,#6366f1 100%);box-shadow:0 4px 14px rgba(129,140,248,.35),0 1px 3px rgba(0,0,0,.3)}.dark-mode .fab-home:hover{background:#4f46e5;box-shadow:0 6px 16px rgba(99,102,241,.4)}.back-to-top-control{position:fixed;bottom:5rem;right:1.5rem;width:2.25rem;height:2.25rem;background:linear-gradient(135deg,#0ea5e9 0%,#0284c7 100%);color:#fff;border-radius:50%;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;visibility:hidden;z-index:2000;box-shadow:0 4px 14px rgba(14,165,233,.45),0 1px 3px rgba(0,0,0,.15);transition:all .25s cubic-bezier(.175,.885,.32,1.275)}.back-to-top-control.show{opacity:1;visibility:visible}.back-to-top-control:hover{transform:translateY(-4px) scale(1.1);box-shadow:0 8px 22px rgba(14,165,233,.55)}.back-to-top-control i{font-size:.7rem}.dark-mode .back-to-top-control{background:linear-gradient(135deg,#38bdf8 0%,#0ea5e9 100%);box-shadow:0 4px 14px rgba(56,189,248,.35),0 1px 3px rgba(0,0,0,.3)}.dark-mode .back-to-top-control:hover{background:#2563eb;box-shadow:0 6px 16px rgba(59,130,246,.4)}#theme-toggle-main.theme-toggle-header{position:absolute !important;top:1.5rem !important;right:1.5rem !important;bottom:auto !important;left:auto !important;z-index:150 !important;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);will-change:auto !important;transform:none !important}.dark-mode #theme-toggle-main.theme-toggle-header{background:rgba(255,255,255,0.05) !important;border:1px solid rgba(255,255,255,0.1) !important;color:#cbd5e1 !important}#theme-toggle-main.theme-toggle-header i{pointer-events:none;transform:none !important}#theme-toggle-main.theme-toggle-header:hover{transform:scale(1.1) rotate(15deg) !important}footer{text-align:center;padding:2.5rem 0 1.75rem;color:var(--text-secondary);font-size:0.875rem;transition:color 0.3s ease}.footer-inner{max-width:640px;margin:0 auto;padding:0 1.25rem}.footer-divider{width:56px;height:2px;background:linear-gradient(90deg,transparent,var(--p),transparent);margin:0 auto 1.75rem;border-radius:1px}.dark-mode .footer-divider{background:linear-gradient(90deg,transparent,#38bdf8,transparent)}.social-links{display:flex;justify-content:center;gap:1rem;flex-wrap:wrap;margin-bottom:2rem;padding:0 .5rem}.social-links a{display:flex;align-items:center;justify-content:center;width:2.2rem;height:2.2rem;border-radius:50%;border:1.5px solid rgba(0,0,0,0.12);color:var(--text-secondary);font-size:0.82rem;text-decoration:none;transition:all .22s ease;opacity:0.8}.social-links a:hover{background:var(--p);color:#fff !important;border-color:var(--p);opacity:1;transform:translateY(-2px);box-shadow:0 4px 10px rgba(0,123,255,0.25)}.dark-mode .social-links a{border-color:rgba(255,255,255,0.12);color:#cbd5e1}.dark-mode .social-links a:hover{background:#38bdf8;border-color:#38bdf8;color:#fff !important;box-shadow:0 4px 10px rgba(56,189,248,0.3)}.footer-title{font-size:.74rem;font-weight:700;letter-spacing:.04em;margin-bottom:.35rem;line-height:2;text-align:center;padding:0 .5rem}.footer-title a{color:var(--text-primary);text-decoration:none;transition:color .2s;display:inline-flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:.15rem}.footer-title a:hover{color:var(--p)}.ft-sep{opacity:.35;font-weight:400;letter-spacing:0;flex-shrink:0}.ft-part{white-space:nowrap;display:inline}.footer-copy{font-size:0.7rem;opacity:0.5;margin:0}.no-results{display:none;text-align:center;padding:3rem 1.5rem;color:var(--text-secondary)}.no-results.show{display:block}.symlink-badge{margin-left:0.5rem;font-size:0.8rem;color:var(--text-muted)}@media(max-width:576px){html{font-size:13px !important}body{font-size:0.82rem !important;line-height:1.5 !important}.container{padding:0 0.4rem !important}header{padding:1rem 0 !important}.logo-container img{max-height:48px !important}header h3{font-size:1.1rem !important;margin:0.5rem 0 0.25rem !important}header h1.display-5{font-size:1rem !important;margin-top:0.5rem !important}.repo-pathbar{padding:0.5rem 0.6rem !important;font-size:0.75rem !important;margin-bottom:0.75rem !important;border-radius:8px !important;gap:0.3rem !important}.repo-pathbar-trail{gap:0.25rem !important}.repo-pathbar a,.repo-pathbar-current{gap:0.25rem !important;font-size:0.75rem !important}.repo-pathbar-separator{font-weight:700 !important}.table-container{margin-bottom:1.5rem !important;border-radius:8px !important}.table{font-size:0.7rem !important;table-layout:auto !important;width:100% !important}.table th,.table td{padding:0.4rem 0.25rem !important}colgroup col:nth-child(4){display:none !important}#fileTable col:nth-child(4){display:none !important;width:0 !important;min-width:0 !important;max-width:0 !important}.table th:nth-child(4),.table td:nth-child(4){display:none !important}#fileTable col:nth-child(2),#fileTable col:nth-child(3){width:1% !important;min-width:0 !important;max-width:none !important}.table-col-date{width:1% !important;min-width:0 !important;max-width:none !important;font-size:0.6rem !important;white-space:nowrap !important}.table-col-size{width:1% !important;min-width:0 !important;max-width:none !important;white-space:nowrap !important;text-align:right !important}.table-col-hash{display:none !important;width:0 !important;min-width:0 !important;max-width:0 !important}.table th:nth-child(1),.table td:nth-child(1){width:auto !important;word-break:break-all !important}.table-col-date .full-date{display:none !important}.table-col-date .short-date{display:inline !important}.table-responsive{overflow-x:hidden !important;border-radius:8px !important}#theme-toggle-main.theme-toggle-header{top:0.75rem !important;right:0.75rem !important;width:32px !important;height:32px !important}.search-wrapper{padding:0.5rem 0 !important}.search-input{padding:0.4rem 0.5rem !important;font-size:0.75rem !important}.search-btn{padding:0 0.8rem !important;min-height:30px !important;font-size:0.75rem !important}.search-hint{margin:0.25rem 0 0 !important;font-size:0.65rem !important}.social-links{gap:0.5rem !important;margin-bottom:1.25rem !important}.social-links a{width:1.75rem !important;height:1.75rem !important;font-size:0.7rem !important}.footer-divider{margin-bottom:1.25rem !important}.footer-title{font-size:0.65rem !important;line-height:1.6 !important}.footer-title a{flex-direction:column !important;gap:0.05rem !important}.ft-sep{display:none !important}.ft-part{display:block !important;text-align:center !important;width:100% !important}.back-to-top-control{bottom:3.75rem !important;right:1rem !important;width:1.75rem !important;height:1.75rem !important}.back-to-top-control i{font-size:0.6rem !important}.fab-home{bottom:6.5rem !important;right:1rem !important;width:1.75rem !important;height:1.75rem !important}.fab-home i{font-size:0.6rem !important}}@media(min-width:2560px){.container{max-width:2200px}body{font-size:1.2rem}.logo-container img{max-height:300px}}@media(min-width:3840px){.container{max-width:3200px}body{font-size:1.5rem}.logo-container img{max-height:400px}}@media print{.search-wrapper,.btn-group,#theme-toggle-main,.back-to-top-control{display:none !important}}#search-form-container{display:none;transition:opacity .18s ease,transform .18s ease}</style>
+    <style nonce="<?php echo e($nonce); ?>">:root{--p:#007bff;--s:#475569;--h:#f8f9fa;--b:#dee2e6;--tp:#0f172a;--ts:#334155;--hc:#0f172a;--fi:#007bff;--bl:#fff;--bg-color:var(--bl);--card-bg:#fff;--card-border:var(--b);--text-primary:var(--tp);--text-secondary:var(--ts);--text-muted:var(--s);--border-color:var(--b);--hover-bg:rgba(0,123,255,0.04);--row-bg:#fff;--row-hover:#f1f5f9;--parent-row-bg:#f8fafc;--parent-row-hover:#f1f5f9;--shadow-sm:0 1px 2px 0 rgba(0,0,0,0.05);--shadow-md:0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -1px rgba(0,0,0,0.06);--shadow-lg:0 10px 15px -3px rgba(0,0,0,0.2),0 4px 6px -2px rgba(0,0,0,0.1);--accent-color:var(--p);--accent-hover:#0056b3}.dark-mode{--bl:#020617;--bg-color:#020617;--card-bg:#0f172a;--card-border:#1e293b;--text-primary:#f8fafc;--text-secondary:#e2e8f0;--text-muted:#cbd5e1;--border-color:#1e293b;--hover-bg:rgba(59,130,246,0.12);--h:#131b2e;--row-bg:#0f172a;--row-hover:#1e293b;--parent-row-bg:#0b0f19;--parent-row-hover:#131b2e;--shadow-lg:0 10px 25px -5px rgba(0,0,0,0.5);--accent-color:#3b82f6;--accent-hover:#60a5fa}.dark-mode .text-muted{color:var(--text-muted) !important}.dark-mode .text-secondary{color:var(--text-secondary) !important}*{box-sizing:border-box}html,body{background-color:var(--bg-color);transition:background-color 0.3s ease,color 0.3s ease}body{font-family:'Inter',sans-serif;font-weight:400;font-size:1rem;line-height:1.7;color:var(--text-primary);margin:0;overflow-x:hidden}body.dark-mode{background:linear-gradient(135deg,#0f172a 0%,#020617 100%) !important;background-attachment:fixed !important}h1,h2,h3,h4,h5,h6{font-family:'Lora',serif;font-weight:600;color:var(--hc);transition:color 0.3s ease}.dark-mode h1,.dark-mode h2,.dark-mode h3,.dark-mode h4,.dark-mode h5,.dark-mode h6{color:var(--text-primary)}a{text-decoration:none;color:var(--p);transition:all 0.2s ease}a:hover{color:#0052a3}.dark-mode a{color:#60a5fa}.dark-mode a:hover{color:#93c5fd}.container{max-width:1400px;padding:0 2rem;margin:0 auto;width:100%}.loading-screen{position:fixed;top:0;left:0;width:100%;height:100%;background:var(--bg-color);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 0.3s ease,visibility 0.3s ease}.loading-screen.fade-out{opacity:0;visibility:hidden}.spinner{width:45px;height:45px;border:3.5px solid var(--border-color);border-top-color:var(--p);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:1.25rem}.dark-mode .spinner{border-top-color:#60a5fa}.loading-text{font-size:0.8rem;font-weight:700;letter-spacing:0.15em;color:var(--text-secondary)}@keyframes spin{to{transform:rotate(360deg)}}header{padding:2rem 0;background-color:var(--bg-color);border-bottom:1px solid var(--border-color);position:relative;z-index:100;transition:background-color 0.3s ease,border-color 0.3s ease}.dark-mode header{background:rgba(15,23,42,0.8);border-bottom:1px solid #1e293b;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}.logo-container img{max-height:80px;width:auto;max-width:100%;transition:transform 0.3s ease,filter 0.3s ease;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.08))}.logo-container img:hover{transform:scale(1.05) rotate(1deg)}.dark-mode .logo-container img{filter:drop-shadow(0 0 12px rgba(59,130,246,0.45))}header h3{font-size:1.5rem;margin:1rem 0 0.5rem;font-weight:700}header h1.display-5{font-size:clamp(1.25rem,4vw,2rem);word-break:break-all;font-weight:600;margin-top:1rem}.repo-pathbar{display:flex;align-items:center;flex-wrap:wrap;gap:.45rem;width:100%;margin:0 auto 1.5rem;padding:.9rem 1rem;color:#334155;background:rgba(255,255,255,.94);border:1px solid rgba(0,123,255,.16);border-radius:14px;box-shadow:0 4px 18px rgba(15,23,42,.08);font-size:.92rem;line-height:1.45;transition:background-color 0.3s ease,border-color 0.3s ease,box-shadow 0.3s ease}.repo-pathbar-trail{display:inline-flex;align-items:center;flex-wrap:wrap;gap:.35rem;min-width:0}.repo-pathbar a,.repo-pathbar-current{display:inline-flex;align-items:center;gap:.38rem;max-width:100%;word-break:break-all;overflow-wrap:anywhere;font-weight:700}.repo-pathbar-current{color:#64748b}.repo-pathbar-separator{color:#94a3b8;font-weight:800;user-select:none}.dark-mode .repo-pathbar{color:#e2e8f0;background:rgba(15,23,42,.92);border-color:#334155;box-shadow:0 4px 20px rgba(0,0,0,.32)}.dark-mode .repo-pathbar-current{color:#cbd5e1}.dark-mode .repo-pathbar-separator{color:#64748b}.btn-outline-secondary{color:var(--text-secondary);background-color:transparent;border-color:var(--card-border);transition:all 0.2s ease}.btn-outline-secondary:hover,.btn-outline-secondary.active{background-color:var(--hover-bg);border-color:var(--accent-color);color:var(--accent-color)}.table-container{border-radius:12px;overflow:hidden;box-shadow:var(--shadow-md);border:1px solid var(--border-color);background-color:var(--card-bg);margin-bottom:2.5rem;transition:border-color 0.3s ease,background-color 0.3s ease}.table-responsive{margin-bottom:0;border-radius:0;overflow-x:auto}.table{margin-bottom:0;font-size:0.95rem;width:100%;table-layout:fixed;border-collapse:collapse;border-color:var(--border-color)}.table th,.table td{padding:1rem .75rem;vertical-align:middle;border-color:var(--border-color);overflow:hidden;text-overflow:ellipsis}.table thead th{background:#212529 !important;color:#ffffff !important;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;font-size:0.75rem;border-color:#212529;transition:background-color 0.3s ease,border-color 0.3s ease}.dark-mode .table thead th{background:linear-gradient(135deg,#1e293b 0%,#334155 100%) !important;color:var(--text-primary) !important;border-color:#334155}.table-col-date{width:200px !important;min-width:200px !important;max-width:200px !important;white-space:nowrap}.table-col-size{width:115px !important;min-width:115px !important;max-width:115px !important;text-align:right}.table-col-hash{width:76px !important;min-width:76px !important;max-width:76px !important;text-align:center}.table-col-date .short-date{display:none}.table-col-date .full-date{display:inline}.table tbody tr:nth-of-type(odd)>td,.table tbody tr:nth-of-type(odd)>th{background-color:var(--card-bg) !important;color:var(--text-primary) !important}.table tbody tr:nth-of-type(even)>td,.table tbody tr:nth-of-type(even)>th{background-color:var(--h) !important;color:var(--text-primary) !important}.dark-mode .table tbody tr:nth-of-type(odd)>td,.dark-mode .table tbody tr:nth-of-type(odd)>th{background-color:#1e293b !important;color:var(--text-primary) !important}.dark-mode .table tbody tr:nth-of-type(even)>td,.dark-mode .table tbody tr:nth-of-type(even)>th{background-color:#1b2537 !important;color:var(--text-primary) !important}.table-hover tbody tr{transition:background-color 0.2s ease,box-shadow 0.2s ease}.table-hover tbody tr:hover>td,.table-hover tbody tr:hover>th{background-color:#f1f5f9 !important}.dark-mode .table-hover tbody tr:hover>td,.dark-mode .table-hover tbody tr:hover>th{background-color:#2e3b4e !important;box-shadow:inset 0 0 0 1px rgba(59,130,246,0.3)}.parent-row>td,.parent-row>th{background-color:var(--parent-row-bg) !important}.parent-row:hover>td,.parent-row:hover>th{background-color:var(--parent-row-hover) !important}.folder-link{color:var(--p) !important;font-weight:700}.file-link{color:var(--text-primary) !important;font-weight:500}.dark-mode .folder-link{color:#60a5fa !important}.dark-mode .file-link{color:var(--text-primary) !important}.file-icon{font-size:1.1rem;width:1.5rem;text-align:center;color:var(--p);margin-right:0.5rem}.dark-mode .file-icon{color:#60a5fa}.search-wrapper{padding:0.9rem 0 0.25rem;transition:all 0.3s ease}.search-form{max-width:520px;margin:0 auto}.search-input-group{display:flex;align-items:center;background:#fff;border:1.5px solid rgba(0,123,255,0.15);border-radius:50px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,0.06);transition:border-color .2s ease,box-shadow .2s ease,background-color 0.3s ease}.search-input-group:focus-within{border-color:rgba(0,123,255,0.45);box-shadow:0 4px 20px rgba(0,123,255,0.1),0 0 0 3px rgba(0,123,255,0.07)}.search-icon-left{padding:0 0 0 1.1rem;color:#c0c8d0;font-size:0.78rem;flex-shrink:0;pointer-events:none}.search-input{flex:1;border:0;background:transparent;padding:0.6rem 0.7rem;font-size:0.875rem;color:var(--text-primary);outline:none;min-width:0}.search-input::placeholder{color:#c0c8d0;font-style:italic}.search-btn{border:0;background:linear-gradient(135deg,var(--p) 0%,#0056b3 100%);color:#fff;padding:0 1.1rem;min-height:38px;cursor:pointer;font-size:0.78rem;border-radius:0 50px 50px 0;transition:background .2s;flex-shrink:0}.search-btn:hover{background:linear-gradient(135deg,#0056b3 0%,#003f88 100%)}.search-hint{font-size:0.7rem;color:#c0c8d0;margin:0.45rem 0 0;text-align:center;letter-spacing:0.01em}.dark-mode .search-input-group{background:rgba(30,41,59,0.85);border-color:rgba(96,165,250,0.15)}.dark-mode .search-input-group:focus-within{border-color:rgba(96,165,250,0.45);box-shadow:0 4px 20px rgba(59,130,246,0.1),0 0 0 3px rgba(59,130,246,0.07)}.dark-mode .search-input::placeholder{color:#475569}.dark-mode .search-icon-left{color:#475569}.dark-mode .search-hint{color:#475569}.search-hidden{display:none !important}.fab-home{position:fixed;bottom:8.75rem;right:1.5rem;width:2.25rem;height:2.25rem;background:linear-gradient(135deg,#6366f1 0%,#4f46e5 100%);color:#fff;border-radius:50%;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;visibility:hidden;z-index:2000;box-shadow:0 4px 14px rgba(99,102,241,.45),0 1px 3px rgba(0,0,0,.15);transition:all .25s cubic-bezier(.175,.885,.32,1.275)}.fab-home.show{opacity:1;visibility:visible}.fab-home:hover{transform:translateY(-4px) scale(1.1);box-shadow:0 8px 22px rgba(99,102,241,.55)}.fab-home i{font-size:.7rem}.dark-mode .fab-home{background:linear-gradient(135deg,#818cf8 0%,#6366f1 100%);box-shadow:0 4px 14px rgba(129,140,248,.35),0 1px 3px rgba(0,0,0,.3)}.dark-mode .fab-home:hover{background:#4f46e5;box-shadow:0 6px 16px rgba(99,102,241,.4)}.back-to-top-control{position:fixed;bottom:5rem;right:1.5rem;width:2.25rem;height:2.25rem;background:linear-gradient(135deg,#0ea5e9 0%,#0284c7 100%);color:#fff;border-radius:50%;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;visibility:hidden;z-index:2000;box-shadow:0 4px 14px rgba(14,165,233,.45),0 1px 3px rgba(0,0,0,.15);transition:all .25s cubic-bezier(.175,.885,.32,1.275)}.back-to-top-control.show{opacity:1;visibility:visible}.back-to-top-control:hover{transform:translateY(-4px) scale(1.1);box-shadow:0 8px 22px rgba(14,165,233,.55)}.back-to-top-control i{font-size:.7rem}.dark-mode .back-to-top-control{background:linear-gradient(135deg,#38bdf8 0%,#0ea5e9 100%);box-shadow:0 4px 14px rgba(56,189,248,.35),0 1px 3px rgba(0,0,0,.3)}.dark-mode .back-to-top-control:hover{background:#2563eb;box-shadow:0 6px 16px rgba(59,130,246,.4)}#theme-toggle-main.theme-toggle-header{position:absolute !important;top:1.5rem !important;right:1.5rem !important;bottom:auto !important;left:auto !important;z-index:150 !important;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);will-change:auto !important;transform:none !important}#theme-toggle-main.theme-toggle-header i{pointer-events:none;transform:none !important}#theme-toggle-main.theme-toggle-header:hover{transform:scale(1.1) rotate(15deg) !important}footer{text-align:center;padding:2.5rem 0 1.75rem;color:var(--text-secondary);font-size:0.875rem;transition:color 0.3s ease}.footer-inner{max-width:640px;margin:0 auto;padding:0 1.25rem}.footer-divider{width:56px;height:2px;background:linear-gradient(90deg,transparent,var(--p),transparent);margin:0 auto 1.75rem;border-radius:1px}.dark-mode .footer-divider{background:linear-gradient(90deg,transparent,#3b82f6,transparent)}.social-links{display:flex;justify-content:center;gap:1rem;flex-wrap:wrap;margin-bottom:2rem;padding:0 .5rem}.social-links a{display:flex;align-items:center;justify-content:center;width:2.2rem;height:2.2rem;border-radius:50%;border:1.5px solid rgba(0,0,0,0.12);color:var(--text-secondary);font-size:0.82rem;text-decoration:none;transition:all .22s ease;opacity:0.8}.social-links a:hover{background:var(--p);color:#fff !important;border-color:var(--p);opacity:1;transform:translateY(-2px);box-shadow:0 4px 10px rgba(0,123,255,0.25)}.dark-mode .social-links a{border-color:rgba(255,255,255,0.12);color:#94a3b8}.dark-mode .social-links a:hover{background:#3b82f6;border-color:#3b82f6;color:#fff !important;box-shadow:0 4px 10px rgba(59,130,246,0.3)}.footer-title{font-size:.74rem;font-weight:700;letter-spacing:.04em;margin-bottom:.35rem;line-height:2;text-align:center;padding:0 .5rem}.footer-title a{color:var(--text-primary);text-decoration:none;transition:color .2s;display:inline-flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:.15rem}.footer-title a:hover{color:var(--p)}.ft-sep{opacity:.35;font-weight:400;letter-spacing:0;flex-shrink:0}.ft-part{white-space:nowrap;display:inline}.footer-copy{font-size:0.7rem;opacity:0.5;margin:0}.no-results{display:none;text-align:center;padding:3rem 1.5rem;color:var(--text-secondary)}.no-results.show{display:block}.symlink-badge{margin-left:0.5rem;font-size:0.8rem;color:var(--text-muted)}@media (max-width:576px){.container{padding:0 .5rem}.table{font-size:0.75rem;table-layout:auto !important;width:100% !important}colgroup col:nth-child(4){display:none !important;width:0 !important;min-width:0 !important;max-width:0 !important}colgroup col:nth-child(1){width:auto !important;min-width:0 !important;max-width:none !important}colgroup col:nth-child(2),colgroup col:nth-child(3){width:1% !important;min-width:0 !important;max-width:none !important}.table th,.table td{padding:0.5rem 0.35rem}.table th:nth-child(4),.table td:nth-child(4){display:none !important}.table th:nth-child(1),.table td:nth-child(1){width:auto !important;max-width:none !important;white-space:normal !important;word-break:break-all !important;overflow:visible !important}.table th:nth-child(2),.table td:nth-child(2){width:1% !important;min-width:0 !important;max-width:none !important;white-space:nowrap !important;font-size:0.65rem !important;opacity:0.8}.table-col-date .full-date{display:none !important}.table-col-date .short-date{display:inline !important}.table th:nth-child(3),.table td:nth-child(3){width:1% !important;min-width:0 !important;max-width:none !important;white-space:nowrap !important;text-align:right !important}.table-responsive{overflow-x:hidden !important;border-radius:12px}#theme-toggle-main.theme-toggle-header{top:1rem !important;right:1rem !important}.social-links{gap:0.75rem;padding:0}.social-links a{width:2rem;height:2rem;font-size:0.78rem}.repo-pathbar{padding:.75rem .8rem;font-size:.82rem}.footer-title a{flex-direction:column;gap:.08rem}.ft-sep{display:none}.ft-part{display:block;text-align:center;width:100%}.back-to-top-control{bottom:4.75rem;right:1.25rem;width:2rem;height:2rem}.back-to-top-control i{font-size:.65rem}}@media (min-width:2560px){.container{max-width:2200px}body{font-size:1.2rem}.logo-container img{max-height:300px}}@media (min-width:3840px){.container{max-width:3200px}body{font-size:1.5rem}.logo-container img{max-height:400px}}@media print{.search-wrapper,.btn-group,#theme-toggle-main,.back-to-top-control{display:none !important}}#search-form-container{display:none;transition:opacity .18s ease,transform .18s ease}#fileTable{table-layout:fixed;width:100%}#fileTable col:nth-child(2){width:200px;min-width:200px}#fileTable col:nth-child(3){width:115px;min-width:115px}#fileTable col:nth-child(4){width:76px;min-width:76px}</style>
     <noscript>
         <style nonce="<?php echo e($nonce); ?>">.loading-screen{display:none !important}</style>
     </noscript>
@@ -1470,16 +1410,16 @@ $alignmentClass = match ($alignment) {
             ?>
             <div class="d-flex justify-content-center align-items-center mt-3 flex-wrap gap-2">
                 <div class="btn-group" aria-label="Sort Options">
-                    <a href="<?php echo e(queryUrl(['berkas' => $currentDir, 'sort' => 'name', 'order' => ($sort === 'name' && $order === 'asc') ? 'desc' : 'asc'])); ?>"
-                       class="btn btn-outline-secondary<?php echo ($isSortExplicit && $sort === 'name') ? CLASS_ACTIVE : ''; ?>" aria-label="Sort by name">
+                    <a href="<?php echo e(queryUrl(['folder' => $currentDir, 'sort' => 'name', 'order' => ($sort === 'name' && $order === 'asc') ? 'desc' : 'asc'])); ?>"
+                       class="btn btn-outline-secondary<?php echo $sort === 'name' ? CLASS_ACTIVE : ''; ?>" aria-label="Sort by name">
                         <i class="fas <?php echo e($nameIconClass); ?>"></i><span class="d-none d-sm-inline ms-1">Name</span>
                     </a>
-                    <a href="<?php echo e(queryUrl(['berkas' => $currentDir, 'sort' => 'modified', 'order' => ($sort === 'modified' && $order === 'asc') ? 'desc' : 'asc'])); ?>"
-                       class="btn btn-outline-secondary<?php echo ($isSortExplicit && $sort === 'modified') ? CLASS_ACTIVE : ''; ?>" aria-label="Sort by date">
+                    <a href="<?php echo e(queryUrl(['folder' => $currentDir, 'sort' => 'modified', 'order' => ($sort === 'modified' && $order === 'asc') ? 'desc' : 'asc'])); ?>"
+                       class="btn btn-outline-secondary<?php echo $sort === 'modified' ? CLASS_ACTIVE : ''; ?>" aria-label="Sort by date">
                         <i class="fas <?php echo e($modifiedIconClass); ?>"></i><span class="d-none d-sm-inline ms-1">Date</span>
                     </a>
-                    <a href="<?php echo e(queryUrl(['berkas' => $currentDir, 'sort' => 'size', 'order' => ($sort === 'size' && $order === 'asc') ? 'desc' : 'asc'])); ?>"
-                       class="btn btn-outline-secondary<?php echo ($isSortExplicit && $sort === 'size') ? CLASS_ACTIVE : ''; ?>" aria-label="Sort by size">
+                    <a href="<?php echo e(queryUrl(['folder' => $currentDir, 'sort' => 'size', 'order' => ($sort === 'size' && $order === 'asc') ? 'desc' : 'asc'])); ?>"
+                       class="btn btn-outline-secondary<?php echo $sort === 'size' ? CLASS_ACTIVE : ''; ?>" aria-label="Sort by size">
                         <i class="fas <?php echo e($sizeIconClass); ?>"></i><span class="d-none d-sm-inline ms-1">Size</span>
                     </a>
                 </div>
@@ -1519,9 +1459,9 @@ $alignmentClass = match ($alignment) {
                         $cumulativePath .= ($index === 0 ? '' : '/') . $part;
                         echo '<span class="repo-pathbar-separator">/</span>';
                         if ($index === $partCount - 1) {
-                            echo '<span class="repo-pathbar-current" aria-current="page"><i class="fas fa-folder-open" aria-hidden="true"></i> ' . e($part) . '</span>';
+                            echo '<span class="repo-pathbar-current" aria-current="page">' . e($part) . '</span>';
                         } else {
-                            echo '<a href="' . e(queryUrl(['berkas' => $cumulativePath])) . '"><i class="fas fa-folder-open" aria-hidden="true"></i> ' . e($part) . '</a>';
+                            echo '<a href="?folder=' . urlencode($cumulativePath) . '">' . e($part) . '</a>';
                         }
                     }
                     ?>
@@ -1555,7 +1495,7 @@ $alignmentClass = match ($alignment) {
                         ?>
                         <tr class="parent-row">
                             <td class="text-break">
-                                <a href="<?php echo e(queryUrl(['berkas' => $parentDir])); ?>" class="folder-link d-flex align-items-center">
+                                <a href="<?php echo e(queryUrl(['folder' => $parentDir])); ?>" class="folder-link d-flex align-items-center">
                                     <i class="fas fa-arrow-up file-icon me-2"></i>
                                     <span>Parent Directory</span>
                                 </a>
@@ -1574,7 +1514,7 @@ $alignmentClass = match ($alignment) {
                             $relativePath = (string) $item['relative'];
                             $iconClass = $item['isDir'] ? 'fa-folder' : getFileIconClass($itemName);
                             $link = $item['isDir']
-                                ? queryUrl(['berkas' => $relativePath])
+                                ? queryUrl(['folder' => $relativePath])
                                 : encodeRelativePath($relativePath);
                             $itemTime = (int) $item['time'];
                         ?>
@@ -1651,7 +1591,7 @@ $alignmentClass = match ($alignment) {
                 <a href="https://facebook.com/alsyundawy" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
                 <a href="https://instagram.com/harry.ds.alsyundawy" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
                 <a href="https://threads.net/harry.ds.alsyundawy" target="_blank" rel="noopener noreferrer" aria-label="Threads"><i class="fa-brands fa-threads"></i></a>
-                <a href="https://t.me/alsyundawy" target="_blank" rel="noopener noreferrer" aria-label="Telegram"><i class="fa-brands fa-telegram"></i></a>
+                <a href="https://telegram.org/alsyundawy" target="_blank" rel="noopener noreferrer" aria-label="Telegram"><i class="fa-brands fa-telegram"></i></a>
                 <a href="https://wa.me/alsyundawy" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>
                 <a href="https://tiktok.com/@alsyundawy" target="_blank" rel="noopener noreferrer" aria-label="TikTok"><i class="fa-brands fa-tiktok"></i></a>
             </div>
@@ -1661,11 +1601,167 @@ $alignmentClass = match ($alignment) {
                     <span class="ft-part">SUPPORT BY HARRY DS ALSYUNDAWY | ALSYUNDAWY IT SOLUTION.</span>
                 </a>
             </p>
-            <p class="footer-copy">&copy; 2009&ndash;2026 &middot; All Rights Reserved</p>
+            <p class="footer-copy">© 2009–2026 · All Rights Reserved</p>
         </div>
     </footer>
 
     <!-- Scripts -->
-    <script nonce="<?php echo e($nonce); ?>">(function(){"use strict";const e={loading:document.getElementById("loadingScreen"),backToTop:document.getElementById("backToTop"),searchInput:document.getElementById("searchInput"),fileTable:document.getElementById("fileTable"),noResults:document.getElementById("noResults"),themeToggle:document.getElementById("theme-toggle-main"),searchToggle:document.getElementById("search-toggle"),searchContainer:document.getElementById("search-form-container")},m=sessionStorage.getItem("isNavigating")==="true"?250:400;if(e.loading&&setTimeout(()=>{e.loading.classList.add("fade-out"),setTimeout(()=>{e.loading.style.display="none"},300)},m),document.querySelectorAll("a").forEach(t=>{t.addEventListener("click",function(){this.href&&!this.target&&!this.href.includes("#")&&!this.href.startsWith("javascript:")&&sessionStorage.setItem("isNavigating","true")})}),window.addEventListener("beforeunload",()=>{setTimeout(()=>sessionStorage.removeItem("isNavigating"),100)}),e.themeToggle){const t=()=>{const s=document.documentElement.classList.contains("dark-mode"),o=e.themeToggle.querySelector("i");o&&(o.className=s?"fas fa-sun":"fas fa-moon")};t(),e.themeToggle.addEventListener("click",()=>{document.documentElement.classList.toggle("dark-mode");const s=document.documentElement.classList.contains("dark-mode");localStorage.setItem("theme",s?"dark":"light"),t()})}const a=document.getElementById("fabHome");if(a&&(window.addEventListener("scroll",function(){window.requestAnimationFrame(function(){a.classList.toggle("show",window.scrollY>300)})},{passive:!0}),a.addEventListener("click",function(){window.location.href="?"})),e.backToTop&&(window.addEventListener("scroll",function(){window.requestAnimationFrame(function(){e.backToTop.classList.toggle("show",window.scrollY>300)})},{passive:!0}),e.backToTop.addEventListener("click",function(){window.scrollTo({top:0,behavior:"smooth"})})),e.searchToggle&&e.searchContainer&&e.searchToggle.addEventListener("click",function(t){t.preventDefault(),e.searchContainer.style.display==="block"?(e.searchContainer.style.opacity="0",e.searchContainer.style.transform="translateY(-6px)",setTimeout(function(){e.searchContainer.style.display="none"},180)):(e.searchContainer.style.display="block",e.searchContainer.style.opacity="0",e.searchContainer.style.transform="translateY(-6px)",e.searchContainer.offsetHeight,e.searchContainer.style.opacity="1",e.searchContainer.style.transform="translateY(0)",e.searchInput&&e.searchInput.focus())}),e.searchInput&&e.fileTable&&e.noResults){const t=e.fileTable.querySelector("tbody"),s=Array.from(t.querySelectorAll("tr:not(.parent-row)")),o=t.querySelector(".parent-row");let c;const r=()=>{const n=e.searchInput.value.toLowerCase().trim();let i=0;s.forEach(l=>{const d=l.getAttribute("data-name");if(!d)return;const u=!n||d.includes(n);l.classList.toggle("search-hidden",!u),u&&i++}),o&&o.classList.toggle("search-hidden",n!=="");const g=n===""||i>0;e.fileTable.classList.toggle("d-none",!g),e.noResults.classList.toggle("show",n!==""&&i===0)};e.searchInput.addEventListener("input",()=>{clearTimeout(c),c=setTimeout(r,150)}),e.searchInput.addEventListener("keydown",n=>{n.key==="Escape"&&(e.searchInput.value="",r())})}})();</script>
+    <script nonce="<?php echo e($nonce); ?>">
+        (function() {
+            'use strict';
+
+            const els = {
+                loading: document.getElementById('loadingScreen'),
+                backToTop: document.getElementById('backToTop'),
+                searchInput: document.getElementById('searchInput'),
+                fileTable: document.getElementById('fileTable'),
+                noResults: document.getElementById('noResults'),
+                themeToggle: document.getElementById('theme-toggle-main'),
+                searchToggle: document.getElementById('search-toggle'),
+                searchContainer: document.getElementById('search-form-container')
+            };
+
+            // Loading Screen
+            const isNavigating = sessionStorage.getItem('isNavigating');
+            const loadTime = isNavigating === 'true' ? 250 : 400;
+
+            if (els.loading) {
+                setTimeout(() => {
+                    els.loading.classList.add('fade-out');
+                    setTimeout(() => {
+                        els.loading.style.display = 'none';
+                    }, 300);
+                }, loadTime);
+            }
+
+            // Navigation flag
+            document.querySelectorAll('a').forEach(link => {
+                link.addEventListener('click', function() {
+                    if (this.href && !this.target && !this.href.includes('#') && !this.href.startsWith('javascript:')) {
+                        sessionStorage.setItem('isNavigating', 'true');
+                    }
+                });
+            });
+
+            window.addEventListener('beforeunload', () => {
+                setTimeout(() => sessionStorage.removeItem('isNavigating'), 100);
+            });
+
+            // Theme Switcher
+            if (els.themeToggle) {
+                const updateIcon = () => {
+                    const isDark = document.documentElement.classList.contains('dark-mode');
+                    const icon = els.themeToggle.querySelector('i');
+                    if (icon) {
+                        icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+                    }
+                };
+                updateIcon();
+                els.themeToggle.addEventListener('click', () => {
+                    document.documentElement.classList.toggle('dark-mode');
+                    const isDark = document.documentElement.classList.contains('dark-mode');
+                    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+                    updateIcon();
+                });
+            }
+
+            // Home FAB
+            const fabHome = document.getElementById('fabHome');
+            if (fabHome) {
+                window.addEventListener('scroll', function() {
+                    window.requestAnimationFrame(function() {
+                        fabHome.classList.toggle('show', window.scrollY > 300);
+                    });
+                }, { passive: true });
+                fabHome.addEventListener('click', function() {
+                    window.location.href = '?';
+                });
+            }
+
+            // Back to Top Control
+            if (els.backToTop) {
+                window.addEventListener('scroll', function() {
+                    window.requestAnimationFrame(function() {
+                        els.backToTop.classList.toggle('show', window.scrollY > 300);
+                    });
+                }, { passive: true });
+
+                els.backToTop.addEventListener('click', function() {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                });
+            }
+
+            // Search Toggler
+            if (els.searchToggle && els.searchContainer) {
+                els.searchToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const isVisible = (els.searchContainer.style.display === 'block');
+                    if (isVisible) {
+                        els.searchContainer.style.opacity = '0';
+                        els.searchContainer.style.transform = 'translateY(-6px)';
+                        setTimeout(function() {
+                            els.searchContainer.style.display = 'none';
+                        }, 180);
+                    } else {
+                        els.searchContainer.style.display = 'block';
+                        els.searchContainer.style.opacity = '0';
+                        els.searchContainer.style.transform = 'translateY(-6px)';
+                        els.searchContainer.offsetHeight; // force reflow
+                        els.searchContainer.style.opacity = '1';
+                        els.searchContainer.style.transform = 'translateY(0)';
+                        if (els.searchInput) {
+                            els.searchInput.focus();
+                        }
+                    }
+                });
+            }
+
+            // Search filter functionality
+            if (els.searchInput && els.fileTable && els.noResults) {
+                const tbody = els.fileTable.querySelector('tbody');
+                const rows = Array.from(tbody.querySelectorAll('tr:not(.parent-row)'));
+                const parentRow = tbody.querySelector('.parent-row');
+                let searchTimeout;
+
+                const performSearch = () => {
+                    const searchTerm = els.searchInput.value.toLowerCase().trim();
+                    let visibleCount = 0;
+
+                    rows.forEach(row => {
+                        const name = row.getAttribute('data-name');
+                        if (!name) return;
+
+                        const isVisible = !searchTerm || name.includes(searchTerm);
+                        row.classList.toggle('search-hidden', !isVisible);
+                        if (isVisible) {
+                            visibleCount++;
+                        }
+                    });
+
+                    if (parentRow) {
+                        parentRow.classList.toggle('search-hidden', searchTerm !== '');
+                    }
+
+                    const hasMatches = (searchTerm === '' || visibleCount > 0);
+                    els.fileTable.classList.toggle('d-none', !hasMatches);
+                    els.noResults.classList.toggle('show', searchTerm !== '' && visibleCount === 0);
+                };
+
+                els.searchInput.addEventListener('input', () => {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(performSearch, 150);
+                });
+
+                els.searchInput.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape') {
+                        els.searchInput.value = '';
+                        performSearch();
+                    }
+                });
+            }
+        })();
+    </script>
 </body>
 </html>
+<?php
+ob_end_flush();
