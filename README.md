@@ -11,21 +11,6 @@
 [![GitHub Forks](https://img.shields.io/github/forks/alsyundawy/File-Directory-Browser?style=social)](https://github.com/alsyundawy/File-Directory-Browser/network/members)
 [![GitHub Contributors](https://img.shields.io/github/contributors/alsyundawy/File-Directory-Browser?style=social)](https://github.com/alsyundawy/File-Directory-Browser/graphs/contributors)
 
-## Stargazers over time
-
-[![Star History Chart](https://api.star-history.com/svg?repos=alsyundawy/File-Directory-Browser&type=Date)](https://www.star-history.com/#alsyundawy/File-Directory-Browser&Date)
-
-## Star History
-
-<!-- markdownlint-disable MD033 -->
-<a href="https://star-history.com/#alsyundawy/File-Directory-Browser&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=alsyundawy/File-Directory-Browser&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=alsyundawy/File-Directory-Browser&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=alsyundawy/File-Directory-Browser&type=Date" />
- </picture>
-</a>
-<!-- markdownlint-enable MD033 -->
 
 ---
 
