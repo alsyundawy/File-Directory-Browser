@@ -113,6 +113,76 @@ $protectedFolders = [
 
 ## Riwayat Perubahan / Changelog
 
+### Version 3.7 (18 Juli 2026 / July 18, 2026) — Bug Fix, Security Hardening & Code Quality
+
+- **🐛 Bug Fix \[CRITICAL\] — Extension Guard:**
+  - Memperbaiki *unreachable code* pada pemeriksaan ekstensi PHP — blok `foreach($requiredExtensions)` sebelumnya ditempatkan di dalam blok `if (version_compare())` setelah `exit()`, sehingga seluruh pemeriksaan ekstensi tidak pernah dieksekusi akibat brace yang salah posisi.
+  - Fixed unreachable code in the extension guard — `foreach($requiredExtensions)` was placed inside the `version_compare()` if-block after `exit()`, causing all extension checks to never execute due to a misplaced closing brace.
+- **🔒 Bug Fix \[SECURITY\] — Reflected XSS on Password Page:**
+  - Menambahkan fungsi `e()` escaping pada `$lockedFolder` di hidden input dan seluruh atribut HTML `renderPasswordPage()` untuk mencegah Reflected XSS melalui nama folder.
+  - Added `e()` escaping on `$lockedFolder` in the `renderPasswordPage()` hidden input and all HTML attributes to prevent Reflected XSS via folder name.
+- **🔒 Bug Fix \[SECURITY\] — CSRF Token Fixation:**
+  - Menambahkan regenerasi CSRF token setelah login folder berhasil untuk mencegah serangan CSRF token fixation / reuse.
+  - Added CSRF token regeneration after successful folder login to prevent CSRF token fixation and reuse attacks.
+- **🐛 Bug Fix — `queryUrl()` Empty String:**
+  - `queryUrl()` kini mengembalikan `''` (string kosong) alih-alih `'?'` saat parameter kosong, mencegah URL yang tidak valid pada link sortir dan breadcrumb.
+  - `queryUrl()` now returns `''` (empty string) instead of `'?'` when params are empty, preventing malformed URLs in sort links and breadcrumbs.
+- **🐛 Bug Fix — `calculateHashes()` fread Error:**
+  - `calculateHashes()` kini melakukan pengecekan `fread() === false` secara benar sebelum memanggil `hash_update()`, mencegah komputasi hash pada pembacaan file yang gagal.
+  - `calculateHashes()` now correctly short-circuits on `fread() === false` before calling `hash_update()`, preventing hash computation on failed reads.
+- **🔒 Security — `isValidHashData()` Hex Length Validation:**
+  - `isValidHashData()` kini memvalidasi panjang hex string secara ketat per algoritma (crc32=8, md5=32, sha1=40) untuk menolak entri cache yang korup atau dipalsukan.
+  - `isValidHashData()` now strictly validates hex string length per algorithm (crc32=8, md5=32, sha1=40) to reject corrupt or spoofed cache entries.
+- **🔒 Security — `ensureCacheDir()` Path Sanitization:**
+  - `ensureCacheDir()` kini membersihkan `$hashCacheVersion` sebelum menggunakannya sebagai komponen path filesystem untuk mencegah path injection.
+  - `ensureCacheDir()` now sanitizes `$hashCacheVersion` before using it as a filesystem path component to prevent path injection.
+- **🔒 Security — Removed Error Suppression Operator:**
+  - Menghapus operator `@` suppression berlebihan pada fungsi I/O file (`file_put_contents`, `rename`, `unlink`, `chmod`, `fopen`) dan menggantinya dengan pemeriksaan nilai kembalian secara eksplisit.
+  - Removed excessive `@` error suppression on file I/O functions (`file_put_contents`, `rename`, `unlink`, `chmod`, `fopen`) and replaced with explicit return-value checks.
+- **✨ Improvement — Session Cleanup on `getFirstLockedFolder()`:**
+  - Menambahkan pembersihan entri `unlocked_folders` yang kedaluwarsa di dalam `getFirstLockedFolder()` untuk mencegah membengkaknya data sesi secara tak terbatas.
+  - Added cleanup of expired `unlocked_folders` session entries inside `getFirstLockedFolder()` to prevent unbounded session bloat over time.
+- **✨ Improvement — Explicit `Content-Type` Header:**
+  - Menambahkan header `Content-Type: text/html; charset=UTF-8` secara eksplisit di `sendSecurityHeaders()` untuk menghilangkan ketergantungan pada deteksi charset browser.
+  - Added an explicit `Content-Type: text/html; charset=UTF-8` header in `sendSecurityHeaders()` to remove reliance on browser charset sniffing.
+- **✨ Improvement — Integer Cast on Lock Timer:**
+  - Menambahkan cast eksplisit `(int)` pada output `$lockTimeRemaining` di HTML untuk keamanan `strict_types` dan rendering bilangan bulat yang bersih.
+  - Added explicit `(int)` cast on `$lockTimeRemaining` output in HTML for `strict_types` safety and clean integer rendering.
+- **🛠️ Code Quality:**
+  - Penyesuaian penyelarasan PSR-12 minor dan peningkatan konsistensi komentar.
+  - Minor PSR-12 alignment and comment consistency improvements.
+
+---
+
+### Version 3.6 (18 Juli 2026 / July 18, 2026) — Security Hardening, CSP Compliance & Performance Optimization
+
+- **🔒 Security — CSP Inline Style Fix:**
+  - Memperbaiki atribut `style` inline pada container halaman hash yang melanggar kebijakan CSP ketat.
+  - Fixed inline `style` attribute on the hash page container that violated the strict CSP policy.
+- **🔒 Security — CSP Script-src Compliance:**
+  - Menghapus handler `onsubmit` inline pada form pencarian untuk kepatuhan penuh `CSP script-src` tanpa `'unsafe-inline'`.
+  - Removed inline `onsubmit` handler from the search form to achieve full `CSP script-src` compliance.
+- **🔒 Security — Session Fixation Prevention:**
+  - Menambahkan `session_regenerate_id(true)` setelah verifikasi password folder berhasil untuk mencegah session fixation.
+  - Added `session_regenerate_id(true)` after successful folder password verification to prevent session fixation.
+- **🔒 Security — `X-XSS-Protection: 0` Header:**
+  - Menambahkan header `X-XSS-Protection: 0` untuk menonaktifkan XSS auditor browser lama (mencegah false positive).
+  - Added `X-XSS-Protection: 0` header to disable the legacy browser XSS auditor and prevent false positives.
+- **⚡ Performance — `isHiddenName()` Static Cache:**
+  - Meng-cache pemetaan `strtolower` di `isHiddenName()` menggunakan variabel `static` untuk menghindari pemanggilan `array_map` berulang.
+  - Cached `strtolower` mapping in `isHiddenName()` using a `static` variable to avoid repeated `array_map` calls.
+- **⚡ Performance — `humanizeFilesize()` Loop Optimization:**
+  - Menghitung jumlah unit terlebih dahulu di luar batas loop pada `humanizeFilesize()`.
+  - Pre-computed unit count outside the loop boundary in `humanizeFilesize()`.
+- **⚡ Performance — `ob_end_flush()` Safety Check:**
+  - Meningkatkan shutdown handler `ob_end_flush` dengan pemeriksaan `ob_get_level()` untuk keamanan.
+  - Improved the `ob_end_flush` shutdown handler with an `ob_get_level()` safety check.
+- **🐛 Bug Fix — Lock Time Display:**
+  - Menggunakan `intdiv()` untuk tampilan waktu penguncian guna mencegah keluaran float pada pesan yang terlihat pengguna.
+  - Used `intdiv()` for lock time display to prevent float output in user-facing messages.
+
+---
+
 ### Version 3.5 (14 Juli 2026 / July 14, 2026) — Premium Glassmorphic Dark Theme & Style Customization
 
 - **🎨 UI/UX — Premium Glassmorphic Dark Theme:**
