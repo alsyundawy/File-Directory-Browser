@@ -32,15 +32,6 @@
  *    - Endpoint hash tetap kompatibel dengan parameter lama ?md5=relative/path.
  *
  *  Changelog:
- *    2026-07-18 (v3.6 - Security Hardening, CSP Compliance & Performance Optimization):
- *      - SECURITY: Fixed inline style attribute on hash page container violating strict CSP policy.
- *      - SECURITY: Removed inline onsubmit handler from search form for full CSP script-src compliance.
- *      - SECURITY: Added session_regenerate_id(true) after successful folder password verification to prevent session fixation.
- *      - SECURITY: Added X-XSS-Protection: 0 header to disable legacy browser XSS auditor (prevents false positives).
- *      - PERFORMANCE: Cached strtolower mapping in isHiddenName() using static variable to avoid repeated array_map calls.
- *      - PERFORMANCE: Pre-computed unit count in humanizeFilesize() loop boundary.
- *      - PERFORMANCE: Improved ob_end_flush shutdown handler with ob_get_level() safety check.
- *      - BUG FIX: Used intdiv() for lock time display to prevent float output in user-facing message.
  *    2026-07-14 (v3.5 - Premium Glassmorphic Dark Theme & Style Customization):
  *      - UI/UX: Implemented modern Premium Glassmorphic Dark Theme with a beautiful fixed radial-gradient.
  *      - UI/UX: Custom-styled folder/file links and icons in both light and dark modes to match specifications.
@@ -109,7 +100,7 @@
  *  Created By : HARRY DERTIN SUTISNA
  *  Contact    : Email: alsyundawy@gmail.com | Handle: @alsyundawy
  *  Created On : 26 June 2025
- *  Updated On : 18 July 2026
+ *  Updated On : 14 July 2026
  *  Timezone   : Asia/Jakarta
  *  License    : MIT License
  * ==============================================================================
@@ -118,7 +109,7 @@
 declare(strict_types=1);
 
 ob_start();
-register_shutdown_function(function() { if (ob_get_level() > 0) { ob_end_flush(); } });
+register_shutdown_function('ob_end_flush');
 
 // =================== RUNTIME / VERSION GUARD ===================
 if (version_compare(PHP_VERSION, '8.0', '<')) {
@@ -420,7 +411,6 @@ function sendSecurityHeaders(string $nonce): void
     header('X-Frame-Options: SAMEORIGIN');
     header('Referrer-Policy: same-origin');
     header('Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()');
-    header('X-XSS-Protection: 0');
 
     $csp = [
         "default-src 'self'",
@@ -589,9 +579,8 @@ function humanizeFilesize(int|float $bytes, int $decimals = 0): string
     $bytes = max(0, (float) $bytes);
     $units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
     $factor = 0;
-    $maxFactor = count($units) - 1;
 
-    while ($bytes >= 1024 && $factor < $maxFactor) {
+    while ($bytes >= 1024 && $factor < count($units) - 1) {
         $bytes /= 1024;
         $factor++;
     }
@@ -804,17 +793,10 @@ function getFileIconClass(string $filename): string
 
 function isHiddenName(string $name, bool $showHiddenFiles, array $filesToHide): bool
 {
-    static $hiddenMapCache = null;
-    static $cachedFilesToHide = null;
-
     $lowerName = strtolower($name);
+    $hiddenMap = array_map('strtolower', $filesToHide);
 
-    if ($cachedFilesToHide !== $filesToHide) {
-        $hiddenMapCache = array_map('strtolower', $filesToHide);
-        $cachedFilesToHide = $filesToHide;
-    }
-
-    if (in_array($lowerName, $hiddenMapCache, true)) {
+    if (in_array($lowerName, $hiddenMap, true)) {
         return true;
     }
 
@@ -1002,13 +984,13 @@ function renderHashPage(string $fileName, int $fileSize, array $hashData, string
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
         <link rel="stylesheet" href="https://unpkg.com/@fortawesome/fontawesome-free@6.7.2/css/all.min.css" integrity="sha384-nRgPTkuX86pH8yjPJUAFuASXQSSl2/bBUiNV47vSYpKFxHJhbcrGnmlYpYJMeD7a" crossorigin="anonymous">
-        <style nonce="<?php echo e($nonce); ?>">:root{--bg-color:#f8fafc;--card-bg:rgba(255,255,255,0.7);--card-border:rgba(0,0,0,0.08);--primary-glow:linear-gradient(135deg,#6366f1 0%,#4f46e5 100%);--text-primary:#0f172a;--text-secondary:#475569;--border-color:rgba(0,0,0,0.06);--glass-blur:blur(16px);--stripe-odd:rgba(0,0,0,0.015);--stripe-even:rgba(0,0,0,0.035);--accent-color:#4f46e5;--accent-hover:#3730a3}.dark-mode{--bg-color:#080c14;--card-bg:rgba(15,23,42,0.65);--card-border:rgba(255,255,255,0.08);--primary-glow:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);--text-primary:#f8fafc;--text-secondary:#cbd5e1;--border-color:rgba(255,255,255,0.06);--stripe-odd:rgba(255,255,255,0.015);--stripe-even:rgba(255,255,255,0.035);--accent-color:#6366f1;--accent-hover:#818cf8}.dark-mode .text-muted{color:var(--text-secondary) !important}.dark-mode .text-secondary{color:var(--text-secondary) !important}body{font-family:'Inter',sans-serif;background-color:var(--bg-color);background-image:radial-gradient(at 0% 0%,rgba(79,70,229,0.1) 0px,transparent 50%),radial-gradient(at 100% 100%,rgba(124,58,237,0.1) 0px,transparent 50%);background-attachment:fixed;color:var(--text-primary);min-height:100vh;display:flex;align-items:center;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}.dark-mode body{background-color:#080c14 !important;background-image:radial-gradient(at 0% 0%,rgba(79,70,229,0.12) 0px,transparent 50%),radial-gradient(at 100% 100%,rgba(124,58,237,0.12) 0px,transparent 50%)}h2{font-family:'Lora',serif;font-weight:600;color:var(--text-primary)}.dark-mode h2{color:var(--text-primary) !important}.card{background:var(--card-bg) !important;backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border:1px solid var(--card-border);border-radius:16px;padding:2rem;box-shadow:0 10px 40px -10px rgba(0,0,0,0.15);width:100%}.dark-mode .card{box-shadow:0 10px 40px -10px rgba(0,0,0,0.4)}.table{color:var(--text-primary) !important;--bs-table-bg:transparent !important;--bs-table-color:var(--text-primary) !important;margin-bottom:0}.table-striped>tbody>tr{color:var(--text-primary) !important}.table-striped>tbody>tr:nth-of-type(odd)>td,.table-striped>tbody>tr:nth-of-type(odd)>th{background-color:var(--stripe-odd) !important;color:var(--text-primary) !important}.table-striped>tbody>tr:nth-of-type(even)>td,.table-striped>tbody>tr:nth-of-type(even)>th{background-color:var(--stripe-even) !important;color:var(--text-primary) !important}.table td,.table th{border-color:var(--border-color) !important;padding:0.75rem 1rem;vertical-align:middle}.table th{font-weight:600;color:var(--text-secondary);width:120px;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px}.hash-value{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;word-break:break-all;color:var(--accent-color);font-size:0.85rem}.btn-copy-hash{background:none;border:none;padding:2px 6px;color:var(--text-secondary);transition:color 0.2s;cursor:pointer}.btn-copy-hash:hover{color:var(--accent-color)}.hash-icon-wrapper{background:rgba(99,102,241,0.1);color:var(--accent-color);width:56px;height:56px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center}.btn-secondary{background:rgba(0,0,0,0.05);border:1px solid var(--card-border);color:var(--text-primary);transition:all 0.2s cubic-bezier(0.4,0,0.2,1);font-weight:500;padding:0.6rem 1.2rem}.dark-mode .btn-secondary{background:rgba(255,255,255,0.06)}.btn-secondary:hover{background:rgba(0,0,0,0.1);border-color:var(--text-secondary);color:var(--text-primary);transform:translateY(-1px)}.dark-mode .btn-secondary:hover{background:rgba(255,255,255,0.12);color:white}#theme-toggle-hash.theme-toggle-header{position:fixed;top:20px;right:20px;width:40px;height:40px;border-radius:50%;background:var(--card-bg);border:1px solid var(--card-border);color:var(--text-primary);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:1000;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:0 4px 6px -1px rgba(0,0,0,0.1)}#theme-toggle-hash.theme-toggle-header:hover{transform:scale(1.1) rotate(15deg);border-color:var(--accent-color);box-shadow:0 0 12px rgba(99,102,241,0.4)}.hash-page-container{min-height:90vh}</style>
+        <style nonce="<?php echo e($nonce); ?>">:root{--bg-color:#f8fafc;--card-bg:rgba(255,255,255,0.7);--card-border:rgba(0,0,0,0.08);--primary-glow:linear-gradient(135deg,#6366f1 0%,#4f46e5 100%);--text-primary:#0f172a;--text-secondary:#475569;--border-color:rgba(0,0,0,0.06);--glass-blur:blur(16px);--stripe-odd:rgba(0,0,0,0.015);--stripe-even:rgba(0,0,0,0.035);--accent-color:#4f46e5;--accent-hover:#3730a3}.dark-mode{--bg-color:#080c14;--card-bg:rgba(15,23,42,0.65);--card-border:rgba(255,255,255,0.08);--primary-glow:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);--text-primary:#f8fafc;--text-secondary:#cbd5e1;--border-color:rgba(255,255,255,0.06);--stripe-odd:rgba(255,255,255,0.015);--stripe-even:rgba(255,255,255,0.035);--accent-color:#6366f1;--accent-hover:#818cf8}.dark-mode .text-muted{color:var(--text-secondary) !important}.dark-mode .text-secondary{color:var(--text-secondary) !important}body{font-family:'Inter',sans-serif;background-color:var(--bg-color);background-image:radial-gradient(at 0% 0%,rgba(79,70,229,0.1) 0px,transparent 50%),radial-gradient(at 100% 100%,rgba(124,58,237,0.1) 0px,transparent 50%);background-attachment:fixed;color:var(--text-primary);min-height:100vh;display:flex;align-items:center;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}.dark-mode body{background-color:#080c14 !important;background-image:radial-gradient(at 0% 0%,rgba(79,70,229,0.12) 0px,transparent 50%),radial-gradient(at 100% 100%,rgba(124,58,237,0.12) 0px,transparent 50%)}h2{font-family:'Lora',serif;font-weight:600;color:var(--text-primary)}.dark-mode h2{color:var(--text-primary) !important}.card{background:var(--card-bg) !important;backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);border:1px solid var(--card-border);border-radius:16px;padding:2rem;box-shadow:0 10px 40px -10px rgba(0,0,0,0.15);width:100%}.dark-mode .card{box-shadow:0 10px 40px -10px rgba(0,0,0,0.4)}.table{color:var(--text-primary) !important;--bs-table-bg:transparent !important;--bs-table-color:var(--text-primary) !important;margin-bottom:0}.table-striped>tbody>tr{color:var(--text-primary) !important}.table-striped>tbody>tr:nth-of-type(odd)>td,.table-striped>tbody>tr:nth-of-type(odd)>th{background-color:var(--stripe-odd) !important;color:var(--text-primary) !important}.table-striped>tbody>tr:nth-of-type(even)>td,.table-striped>tbody>tr:nth-of-type(even)>th{background-color:var(--stripe-even) !important;color:var(--text-primary) !important}.table td,.table th{border-color:var(--border-color) !important;padding:0.75rem 1rem;vertical-align:middle}.table th{font-weight:600;color:var(--text-secondary);width:120px;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px}.hash-value{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;word-break:break-all;color:var(--accent-color);font-size:0.85rem}.btn-copy-hash{background:none;border:none;padding:2px 6px;color:var(--text-secondary);transition:color 0.2s;cursor:pointer}.btn-copy-hash:hover{color:var(--accent-color)}.hash-icon-wrapper{background:rgba(99,102,241,0.1);color:var(--accent-color);width:56px;height:56px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center}.btn-secondary{background:rgba(0,0,0,0.05);border:1px solid var(--card-border);color:var(--text-primary);transition:all 0.2s cubic-bezier(0.4,0,0.2,1);font-weight:500;padding:0.6rem 1.2rem}.dark-mode .btn-secondary{background:rgba(255,255,255,0.06)}.btn-secondary:hover{background:rgba(0,0,0,0.1);border-color:var(--text-secondary);color:var(--text-primary);transform:translateY(-1px)}.dark-mode .btn-secondary:hover{background:rgba(255,255,255,0.12);color:white}#theme-toggle-hash.theme-toggle-header{position:fixed;top:20px;right:20px;width:40px;height:40px;border-radius:50%;background:var(--card-bg);border:1px solid var(--card-border);color:var(--text-primary);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:1000;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);box-shadow:0 4px 6px -1px rgba(0,0,0,0.1)}#theme-toggle-hash.theme-toggle-header:hover{transform:scale(1.1) rotate(15deg);border-color:var(--accent-color);box-shadow:0 0 12px rgba(99,102,241,0.4)}</style>
     </head>
     <body>
         <button class="btn btn-outline-secondary theme-toggle-header" id="theme-toggle-hash" title="Toggle Theme" aria-label="Toggle Theme">
             <i class="fas fa-sun"></i>
         </button>
-        <div class="container py-5 d-flex justify-content-center align-items-center hash-page-container">
+        <div class="container py-5 d-flex justify-content-center align-items-center" style="min-height: 90vh;">
             <div class="col-11 col-sm-10 col-md-8 col-lg-5">
                 <div class="card">
                     <div class="text-center mb-4">
@@ -1274,10 +1256,7 @@ if ($lockedFolder !== null) {
         } elseif (array_key_exists($postLockedFolderLower, $lowercaseProtectedFolders)) {
             $storedHash = $lowercaseProtectedFolders[$postLockedFolderLower];
             if (password_verify($passwordInput, $storedHash)) {
-                // Success: regenerate session ID to prevent session fixation
-                session_regenerate_id(true);
-
-                // Clear attempts and set unlock
+                // Success: clear attempts and set unlock
                 unset($_SESSION['login_attempts'][$postLockedFolderLower]);
                 $_SESSION['unlocked_folders'][$postLockedFolderLower] = time();
 
@@ -1299,7 +1278,7 @@ if ($lockedFolder !== null) {
 
                 $remainingAttempts = $loginMaxAttempts - $_SESSION['login_attempts'][$postLockedFolderLower]['count'];
                 if ($remainingAttempts <= 0) {
-                    $loginError = 'Terlalu banyak percobaan salah. Login dikunci selama ' . intdiv($loginLockSeconds, 60) . ' menit.';
+                    $loginError = 'Terlalu banyak percobaan salah. Login dikunci selama ' . ($loginLockSeconds / 60) . ' menit.';
                 } else {
                     $loginError = 'Password salah! Sisa percobaan: ' . $remainingAttempts . '.';
                 }
@@ -1509,7 +1488,7 @@ $alignmentClass = match ($alignment) {
                 </button>
             </div>
             <div class="search-wrapper" id="search-form-container">
-                <form method="GET" action="" class="search-form">
+                <form method="GET" action="" class="search-form" onsubmit="event.preventDefault();">
                     <div class="search-input-group">
                         <span class="search-icon-left" aria-hidden="true"><i class="fas fa-search"></i></span>
                         <input type="text" id="searchInput" class="search-input" placeholder="Cari nama file..." autocomplete="off" spellcheck="false" aria-label="Cari file">
@@ -1687,6 +1666,6 @@ $alignmentClass = match ($alignment) {
     </footer>
 
     <!-- Scripts -->
-    <script nonce="<?php echo e($nonce); ?>">(function(){"use strict";const e={loading:document.getElementById("loadingScreen"),backToTop:document.getElementById("backToTop"),searchInput:document.getElementById("searchInput"),fileTable:document.getElementById("fileTable"),noResults:document.getElementById("noResults"),themeToggle:document.getElementById("theme-toggle-main"),searchToggle:document.getElementById("search-toggle"),searchContainer:document.getElementById("search-form-container")},m=sessionStorage.getItem("isNavigating")==="true"?250:400;if(e.loading&&setTimeout(()=>{e.loading.classList.add("fade-out"),setTimeout(()=>{e.loading.style.display="none"},300)},m),document.querySelectorAll("a").forEach(t=>{t.addEventListener("click",function(){this.href&&!this.target&&!this.href.includes("#")&&!this.href.startsWith("javascript:")&&sessionStorage.setItem("isNavigating","true")})}),window.addEventListener("beforeunload",()=>{setTimeout(()=>sessionStorage.removeItem("isNavigating"),100)}),e.themeToggle){const t=()=>{const s=document.documentElement.classList.contains("dark-mode"),o=e.themeToggle.querySelector("i");o&&(o.className=s?"fas fa-sun":"fas fa-moon")};t(),e.themeToggle.addEventListener("click",()=>{document.documentElement.classList.toggle("dark-mode");const s=document.documentElement.classList.contains("dark-mode");localStorage.setItem("theme",s?"dark":"light"),t()})}const a=document.getElementById("fabHome");if(a&&(window.addEventListener("scroll",function(){window.requestAnimationFrame(function(){a.classList.toggle("show",window.scrollY>300)})},{passive:!0}),a.addEventListener("click",function(){window.location.href="?"})),e.backToTop&&(window.addEventListener("scroll",function(){window.requestAnimationFrame(function(){e.backToTop.classList.toggle("show",window.scrollY>300)})},{passive:!0}),e.backToTop.addEventListener("click",function(){window.scrollTo({top:0,behavior:"smooth"})})),e.searchToggle&&e.searchContainer&&e.searchToggle.addEventListener("click",function(t){t.preventDefault(),e.searchContainer.style.display==="block"?(e.searchContainer.style.opacity="0",e.searchContainer.style.transform="translateY(-6px)",setTimeout(function(){e.searchContainer.style.display="none"},180)):(e.searchContainer.style.display="block",e.searchContainer.style.opacity="0",e.searchContainer.style.transform="translateY(-6px)",e.searchContainer.offsetHeight,e.searchContainer.style.opacity="1",e.searchContainer.style.transform="translateY(0)",e.searchInput&&e.searchInput.focus())}),e.searchInput&&e.fileTable&&e.noResults){const t=e.fileTable.querySelector("tbody"),s=Array.from(t.querySelectorAll("tr:not(.parent-row)")),o=t.querySelector(".parent-row");let c;const r=()=>{const n=e.searchInput.value.toLowerCase().trim();let i=0;s.forEach(l=>{const d=l.getAttribute("data-name");if(!d)return;const u=!n||d.includes(n);l.classList.toggle("search-hidden",!u),u&&i++}),o&&o.classList.toggle("search-hidden",n!=="");const g=n===""||i>0;e.fileTable.classList.toggle("d-none",!g),e.noResults.classList.toggle("show",n!==""&&i===0)};e.searchInput.addEventListener("input",()=>{clearTimeout(c),c=setTimeout(r,150)}),e.searchInput.addEventListener("keydown",n=>{n.key==="Escape"&&(e.searchInput.value="",r())})}const sf=document.querySelector(".search-form");sf&&sf.addEventListener("submit",function(ev){ev.preventDefault()})})();</script>
+    <script nonce="<?php echo e($nonce); ?>">(function(){"use strict";const e={loading:document.getElementById("loadingScreen"),backToTop:document.getElementById("backToTop"),searchInput:document.getElementById("searchInput"),fileTable:document.getElementById("fileTable"),noResults:document.getElementById("noResults"),themeToggle:document.getElementById("theme-toggle-main"),searchToggle:document.getElementById("search-toggle"),searchContainer:document.getElementById("search-form-container")},m=sessionStorage.getItem("isNavigating")==="true"?250:400;if(e.loading&&setTimeout(()=>{e.loading.classList.add("fade-out"),setTimeout(()=>{e.loading.style.display="none"},300)},m),document.querySelectorAll("a").forEach(t=>{t.addEventListener("click",function(){this.href&&!this.target&&!this.href.includes("#")&&!this.href.startsWith("javascript:")&&sessionStorage.setItem("isNavigating","true")})}),window.addEventListener("beforeunload",()=>{setTimeout(()=>sessionStorage.removeItem("isNavigating"),100)}),e.themeToggle){const t=()=>{const s=document.documentElement.classList.contains("dark-mode"),o=e.themeToggle.querySelector("i");o&&(o.className=s?"fas fa-sun":"fas fa-moon")};t(),e.themeToggle.addEventListener("click",()=>{document.documentElement.classList.toggle("dark-mode");const s=document.documentElement.classList.contains("dark-mode");localStorage.setItem("theme",s?"dark":"light"),t()})}const a=document.getElementById("fabHome");if(a&&(window.addEventListener("scroll",function(){window.requestAnimationFrame(function(){a.classList.toggle("show",window.scrollY>300)})},{passive:!0}),a.addEventListener("click",function(){window.location.href="?"})),e.backToTop&&(window.addEventListener("scroll",function(){window.requestAnimationFrame(function(){e.backToTop.classList.toggle("show",window.scrollY>300)})},{passive:!0}),e.backToTop.addEventListener("click",function(){window.scrollTo({top:0,behavior:"smooth"})})),e.searchToggle&&e.searchContainer&&e.searchToggle.addEventListener("click",function(t){t.preventDefault(),e.searchContainer.style.display==="block"?(e.searchContainer.style.opacity="0",e.searchContainer.style.transform="translateY(-6px)",setTimeout(function(){e.searchContainer.style.display="none"},180)):(e.searchContainer.style.display="block",e.searchContainer.style.opacity="0",e.searchContainer.style.transform="translateY(-6px)",e.searchContainer.offsetHeight,e.searchContainer.style.opacity="1",e.searchContainer.style.transform="translateY(0)",e.searchInput&&e.searchInput.focus())}),e.searchInput&&e.fileTable&&e.noResults){const t=e.fileTable.querySelector("tbody"),s=Array.from(t.querySelectorAll("tr:not(.parent-row)")),o=t.querySelector(".parent-row");let c;const r=()=>{const n=e.searchInput.value.toLowerCase().trim();let i=0;s.forEach(l=>{const d=l.getAttribute("data-name");if(!d)return;const u=!n||d.includes(n);l.classList.toggle("search-hidden",!u),u&&i++}),o&&o.classList.toggle("search-hidden",n!=="");const g=n===""||i>0;e.fileTable.classList.toggle("d-none",!g),e.noResults.classList.toggle("show",n!==""&&i===0)};e.searchInput.addEventListener("input",()=>{clearTimeout(c),c=setTimeout(r,150)}),e.searchInput.addEventListener("keydown",n=>{n.key==="Escape"&&(e.searchInput.value="",r())})}})();</script>
 </body>
 </html>
