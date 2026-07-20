@@ -6,6 +6,7 @@
 [![GitHub Issues](https://img.shields.io/github/issues/alsyundawy/File-Directory-Browser)](https://github.com/alsyundawy/File-Directory-Browser/issues)
 [![GitHub Pull Requests](https://img.shields.io/github/issues-pr/alsyundawy/File-Directory-Browser)](https://github.com/alsyundawy/File-Directory-Browser/pulls)
 [![Donate with PayPal](https://img.shields.io/badge/PayPal-donate-orange)](https://www.paypal.me/alsyundawy)
+[![Donate with Ko-fi](https://img.shields.io/badge/Ko--fi-donate-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/alsyundawy)
 [![Sponsor with GitHub](https://img.shields.io/badge/GitHub-sponsor-orange)](https://github.com/sponsors/alsyundawy)
 [![GitHub Stars](https://img.shields.io/github/stars/alsyundawy/File-Directory-Browser?style=social)](https://github.com/alsyundawy/File-Directory-Browser/stargazers)
 [![GitHub Forks](https://img.shields.io/github/forks/alsyundawy/File-Directory-Browser?style=social)](https://github.com/alsyundawy/File-Directory-Browser/network/members)
@@ -325,9 +326,9 @@ $protectedFolders = [
 
 Anda bebas untuk mengubah, mendistribusikan script ini untuk keperluan anda.
 
-If you find this project helpful and would like to support it, please consider donating via <https://www.paypal.me/alsyundawy>. Thank you for your support!
+If you find this project helpful and would like to support it, please consider donating via <https://www.paypal.me/alsyundawy> or <https://ko-fi.com/alsyundawy>. Thank you for your support!
 
-Jika Anda merasa terbantu dan ingin mendukung proyek ini, pertimbangkan untuk berdonasi melalui <https://www.paypal.me/alsyundawy>. Terima kasih atas dukungannya!
+Jika Anda merasa terbantu dan ingin mendukung proyek ini, pertimbangkan untuk berdonasi melalui <https://www.paypal.me/alsyundawy> atau <https://ko-fi.com/alsyundawy>. Terima kasih atas dukungannya!
 
 Jika Anda merasa terbantu dan ingin mendukung proyek ini, pertimbangkan untuk berdonasi melalui QRIS. Terima kasih atas dukungannya!
 
