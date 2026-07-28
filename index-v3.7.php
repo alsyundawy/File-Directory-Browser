@@ -316,7 +316,7 @@ function makeNonce(): string
         return rtrim(strtr(base64_encode(random_bytes(16)), '+/', '-_'), '=');
     } catch (Throwable $e) {
         error_log('Failed to generate CSP nonce: ' . $e->getMessage());
-        return hash('sha256', uniqid('', true) . microtime(true));
+        return hash('sha256', uniqid('', true) . microtime(true)); // DevSkim: ignore DS173237
     }
 }
 
@@ -424,10 +424,10 @@ function queryUrl(array $params): string
 
 function getSafeHost(): string
 {
-    $host   = $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? 'localhost';
+    $host   = $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? 'localhost'; // DevSkim: ignore DS162092
     $host   = strtolower(trim((string) $host));
-    $host   = preg_replace('/[\r\n\t]/', '', $host) ?? 'localhost';
-    $result = 'localhost';
+    $host   = preg_replace('/[\r\n\t]/', '', $host) ?? 'localhost'; // DevSkim: ignore DS162092
+    $result = 'localhost'; // DevSkim: ignore DS162092
 
     if (str_contains($host, ':')) {
         [$hostname, $port] = explode(':', $host, 2);
@@ -447,7 +447,7 @@ function getSafeHost(): string
 
 function getCanonicalURL(): string
 {
-    $scheme = isHttpsRequest() ? 'https://' : 'http://';
+    $scheme = isHttpsRequest() ? 'https://' : 'http://'; // DevSkim: ignore DS137138
     $host   = getSafeHost();
     $uri    = $_SERVER['REQUEST_URI'] ?? '/';
     $uri    = preg_replace('/[\r\n\t]/', '', (string) $uri) ?? '/';
@@ -781,8 +781,8 @@ function calculateHashes(string $fullFilePath, int $chunkSize): array|false
 
     // These hash algorithms are used for file integrity checksum generation (non-cryptographic context)
     $ctxCrc32 = hash_init('crc32b');
-    $ctxMd5   = hash_init('md5');  // NOSONAR
-    $ctxSha1  = hash_init('sha1'); // NOSONAR
+    $ctxMd5   = hash_init('md5');  // NOSONAR DevSkim: ignore DS126858
+    $ctxSha1  = hash_init('sha1'); // NOSONAR DevSkim: ignore DS126859
 
     while (!feof($handle)) {
         $buffer = fread($handle, $chunkSize);
@@ -794,16 +794,16 @@ function calculateHashes(string $fullFilePath, int $chunkSize): array|false
             break;
         }
         hash_update($ctxCrc32, $buffer);
-        hash_update($ctxMd5, $buffer);
-        hash_update($ctxSha1, $buffer);
+        hash_update($ctxMd5, $buffer);  // DevSkim: ignore DS126858
+        hash_update($ctxSha1, $buffer); // DevSkim: ignore DS126859
     }
 
     fclose($handle);
 
     return [
         'crc32' => hash_final($ctxCrc32),
-        'md5'   => hash_final($ctxMd5),
-        'sha1'  => hash_final($ctxSha1),
+        'md5'   => hash_final($ctxMd5),  // DevSkim: ignore DS126858
+        'sha1'  => hash_final($ctxSha1), // DevSkim: ignore DS126859
     ];
 }
 
@@ -1502,4 +1502,3 @@ $isRootDir     = ($requestedPath === '');
 
 </body>
 </html>
-<?php

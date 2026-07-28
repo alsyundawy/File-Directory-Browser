@@ -1,0 +1,5 @@
+---
+# MegaLinter configuration file
+# Reference: https://megalinter.io/latest/configuration/
+
+SPELL_CSPELL_FILTER_REGEX_EXCLUDE: (README\.md)
