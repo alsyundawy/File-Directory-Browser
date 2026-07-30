@@ -1,4 +1,5 @@
 <?php
+
 /*
  * ==============================================================================
  *  File & Directory Browser (index.php)
@@ -681,11 +682,11 @@ function renderPasswordPage(string $lockedFolder, string|null $error, string $no
     <h1>Folder Terproteksi</h1>
     <p class="subtitle">Folder memerlukan password untuk diakses.</p>
 
-    <?php if ($isLocked): ?>
+    <?php if ($isLocked) : ?>
         <div class="lock-msg" role="alert">
             Terlalu banyak percobaan salah. Silakan coba lagi dalam <strong><?= (int) $lockTimeRemaining ?></strong> detik.
         </div>
-    <?php elseif ($error !== null): ?>
+    <?php elseif ($error !== null) : ?>
         <div class="error-msg" role="alert"><?= e($error) ?></div>
     <?php endif; ?>
 
@@ -708,7 +709,7 @@ function renderPasswordPage(string $lockedFolder, string|null $error, string $no
     </form>
     <a href="/" class="back-link">← Kembali ke Beranda</a>
 </div>
-<?php if ($isLocked): ?>
+    <?php if ($isLocked) : ?>
 <script nonce="<?= e($nonce) ?>">
 (function(){
     var el=document.querySelector('.lock-msg strong');
@@ -720,10 +721,10 @@ function renderPasswordPage(string $lockedFolder, string|null $error, string $no
     }
 }());
 </script>
-<?php endif; ?>
+    <?php endif; ?>
 </body>
 </html>
-<?php
+    <?php
 }
 
 /**
@@ -791,8 +792,8 @@ function isValidHashData(mixed $data): bool
 
     $expectedLengths = [
         'crc32' => 8,
-        'md5'   => 32,
-        'sha1'  => 40,
+        'md5'   => 32, // DevSkim: ignore DS126858
+        'sha1'  => 40, // DevSkim: ignore DS126859
     ];
 
     foreach ($expectedLengths as $key => $length) {
@@ -835,7 +836,7 @@ function writeHashCache(string $cacheFile, array $hashData): void
     try {
         $rand = bin2hex(random_bytes(8));
     } catch (Throwable) {
-        $rand = uniqid('', true);
+        $rand = uniqid('', true); // DevSkim: ignore DS173237
     }
 
     $tmpFile = $cacheFile . '.' . $rand . '.tmp';
@@ -955,12 +956,12 @@ function renderHashPage(string $fileName, int $fileSize, array $hashData, string
                 <td><?= e($hashData['crc32']) ?></td>
             </tr>
             <tr>
-                <td>MD5</td>
-                <td><?= e($hashData['md5']) ?></td>
+                <td>MD5</td> <!-- DevSkim: ignore DS126858 -->
+                <td><?= e($hashData['md5']) ?></td> <!-- DevSkim: ignore DS126858 -->
             </tr>
             <tr>
-                <td>SHA-1</td>
-                <td><?= e($hashData['sha1']) ?></td>
+                <td>SHA-1</td> <!-- DevSkim: ignore DS126859 -->
+                <td><?= e($hashData['sha1']) ?></td> <!-- DevSkim: ignore DS126859 -->
             </tr>
         </tbody>
     </table>
@@ -975,7 +976,7 @@ function renderHashPage(string $fileName, int $fileSize, array $hashData, string
 </script>
 </body>
 </html>
-<?php
+    <?php
 }
 
 function isDisplayableFolder(string $name, array $filesToHide, bool $showHiddenFiles): bool
@@ -1011,7 +1012,7 @@ if (empty($_SESSION['csrf'])) {
     try {
         $_SESSION['csrf'] = bin2hex(random_bytes(32));
     } catch (Throwable) {
-        $_SESSION['csrf'] = hash('sha256', uniqid('', true) . microtime(true));
+        $_SESSION['csrf'] = hash('sha256', uniqid('', true) . microtime(true)); // DevSkim: ignore DS173237
     }
 }
 
@@ -1058,7 +1059,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['unlock_folder'])) {
         try {
             $_SESSION['csrf'] = bin2hex(random_bytes(32));
         } catch (Throwable) {
-            $_SESSION['csrf'] = hash('sha256', uniqid('', true) . microtime(true));
+            $_SESSION['csrf'] = hash('sha256', uniqid('', true) . microtime(true)); // DevSkim: ignore DS173237
         }
 
         $redirectPath = encodeRelativePath($postLockedFolder);
@@ -1118,7 +1119,7 @@ if (isset($_GET['hash'])) {
     $hashData  = null;
 
     if ($cacheDir !== null) {
-        $cacheKey  = hash('sha256', $realHashPath . '|' . (string) $fileSize . '|' . (string) filemtime($realHashPath));
+        $cacheKey  = hash('sha256', $realHashPath . '|' . (string) $fileSize . '|' . (string) filemtime($realHashPath)); // DevSkim: ignore DS173237
         $cacheFile = $cacheDir . DIRECTORY_SEPARATOR . $cacheKey . '.json';
         $hashData  = readHashCache($cacheFile);
     }
@@ -1417,7 +1418,7 @@ $isRootDir  = ($requestedPath === '');
                                 ?>
                                 <a href="<?= e($nameSortUrl) ?>" class="sort-btn <?= $sortBy === 'name' ? 'active' : '' ?>" aria-label="Sort by name">
                                     Name
-                                    <?php if ($sortBy === 'name'): ?>
+                                    <?php if ($sortBy === 'name') : ?>
                                         <span class="sort-indicator" aria-hidden="true"><?= $order === 'asc' ? '↑' : '↓' ?></span>
                                     <?php endif; ?>
                                 </a>
@@ -1429,7 +1430,7 @@ $isRootDir  = ($requestedPath === '');
                                 ?>
                                 <a href="<?= e($dateSortUrl) ?>" class="sort-btn <?= $sortBy === 'time' ? 'active' : '' ?>" aria-label="Sort by date">
                                     Date
-                                    <?php if ($sortBy === 'time'): ?>
+                                    <?php if ($sortBy === 'time') : ?>
                                         <span class="sort-indicator" aria-hidden="true"><?= $order === 'asc' ? '↑' : '↓' ?></span>
                                     <?php endif; ?>
                                 </a>
@@ -1441,7 +1442,7 @@ $isRootDir  = ($requestedPath === '');
                                 ?>
                                 <a href="<?= e($sizeSortUrl) ?>" class="sort-btn <?= $sortBy === 'size' ? 'active' : '' ?>" aria-label="Sort by size">
                                     Size
-                                    <?php if ($sortBy === 'size'): ?>
+                                    <?php if ($sortBy === 'size') : ?>
                                         <span class="sort-indicator" aria-hidden="true"><?= $order === 'asc' ? '↑' : '↓' ?></span>
                                     <?php endif; ?>
                                 </a>
@@ -1450,11 +1451,13 @@ $isRootDir  = ($requestedPath === '');
                         </tr>
                     </thead>
                     <tbody id="fileList">
-                        <?php if ($showParent && !$isRootDir): ?>
+                        <?php if ($showParent && !$isRootDir) : ?>
                         <tr data-name="..">
                             <td colspan="4">
                                 <div class="name-cell">
-                                    <?php if ($showIcons): ?><span class="icon" aria-hidden="true">📁</span><?php endif; ?>
+                                    <?php if ($showIcons) :
+                                        ?><span class="icon" aria-hidden="true">📁</span><?php
+                                    endif; ?>
                                     <?php
                                     $parentSegments = $pathParts;
                                     array_pop($parentSegments);
@@ -1467,23 +1470,27 @@ $isRootDir  = ($requestedPath === '');
                         </tr>
                         <?php endif; ?>
 
-                        <?php foreach ($entries as $item):
+                        <?php foreach ($entries as $item) :
                             $itemName    = $item['name'];
                             $itemRelPath = $requestedPath !== '' ? $requestedPath . '/' . $itemName : $itemName;
                             $itemTime    = (int) $item['time'];
 
-                            if ($item['type'] === 'dir'):
+                            if ($item['type'] === 'dir') :
                                 $dirUrl           = queryUrl(['berkas' => encodeRelativePath($itemRelPath)]);
                                 $itemRelPathLower  = strtolower($itemRelPath);
                                 $isProtected       = array_key_exists($itemRelPathLower, $lowercaseProtectedFoldersTable)
                                     || array_key_exists(strtolower($itemName), $lowercaseProtectedFoldersTable);
-                        ?>
+                                ?>
                         <tr data-name="<?= e(strtolower($itemName)) ?>" data-type="dir">
                             <td>
                                 <div class="name-cell">
-                                    <?php if ($showIcons): ?><span class="icon" aria-hidden="true">📂</span><?php endif; ?>
+                                    <?php if ($showIcons) :
+                                        ?><span class="icon" aria-hidden="true">📂</span><?php
+                                    endif; ?>
                                     <a href="<?= e($dirUrl) ?>" class="dir-link"><?= e($itemName) ?></a>
-                                    <?php if ($isProtected): ?><span class="lock-badge" aria-label="Password protected" title="Password protected">🔒</span><?php endif; ?>
+                                    <?php if ($isProtected) :
+                                        ?><span class="lock-badge" aria-label="Password protected" title="Password protected">🔒</span><?php
+                                    endif; ?>
                                 </div>
                             </td>
                             <td class="date-cell">
@@ -1493,32 +1500,34 @@ $isRootDir  = ($requestedPath === '');
                             <td class="size-cell">—</td>
                             <td>—</td>
                         </tr>
-                        <?php else: // file
-                            $hashUrl       = queryUrl(['hash' => encodeRelativePath($itemRelPath)]);
-                            $downloadUrl   = '/' . encodeRelativePath($itemRelPath);
-                            $fileSizeHuman = humanizeFilesize((int) $item['size'], $sizeDecimals);
-                            $ext           = strtolower(pathinfo($itemName, PATHINFO_EXTENSION));
-                            $fileIcon      = match ($ext) {
-                                'pdf'                    => '📄',
-                                'zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz' => '🗜️',
-                                'mp4', 'mkv', 'avi', 'mov', 'wmv', 'webm', 'flv' => '🎬',
-                                'mp3', 'flac', 'wav', 'aac', 'ogg', 'm4a'    => '🎵',
-                                'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'avif' => '🖼️',
-                                'doc', 'docx'            => '📝',
-                                'xls', 'xlsx'            => '📊',
-                                'ppt', 'pptx'            => '📑',
-                                'txt', 'md', 'log'       => '📃',
-                                'iso', 'img'             => '💿',
-                                'apk'                    => '📱',
-                                'exe', 'msi', 'dmg', 'deb', 'rpm', 'pkg' => '⚙️',
-                                'ttf', 'otf', 'woff', 'woff2' => '🔤',
-                                default                  => '📎',
-                            };
-                        ?>
+                            <?php else : // file
+                                $hashUrl       = queryUrl(['hash' => encodeRelativePath($itemRelPath)]);
+                                $downloadUrl   = '/' . encodeRelativePath($itemRelPath);
+                                $fileSizeHuman = humanizeFilesize((int) $item['size'], $sizeDecimals);
+                                $ext           = strtolower(pathinfo($itemName, PATHINFO_EXTENSION));
+                                $fileIcon      = match ($ext) {
+                                    'pdf'                    => '📄',
+                                    'zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz' => '🗜️',
+                                    'mp4', 'mkv', 'avi', 'mov', 'wmv', 'webm', 'flv' => '🎬',
+                                    'mp3', 'flac', 'wav', 'aac', 'ogg', 'm4a'    => '🎵',
+                                    'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'avif' => '🖼️',
+                                    'doc', 'docx'            => '📝',
+                                    'xls', 'xlsx'            => '📊',
+                                    'ppt', 'pptx'            => '📑',
+                                    'txt', 'md', 'log'       => '📃',
+                                    'iso', 'img'             => '💿',
+                                    'apk'                    => '📱',
+                                    'exe', 'msi', 'dmg', 'deb', 'rpm', 'pkg' => '⚙️',
+                                    'ttf', 'otf', 'woff', 'woff2' => '🔤',
+                                    default                  => '📎',
+                                };
+    ?>
                         <tr data-name="<?= e(strtolower($itemName)) ?>" data-type="file">
                             <td>
                                 <div class="name-cell">
-                                    <?php if ($showIcons): ?><span class="icon" aria-hidden="true"><?= $fileIcon ?></span><?php endif; ?>
+                                    <?php if ($showIcons) :
+                                        ?><span class="icon" aria-hidden="true"><?= $fileIcon ?></span><?php
+                                    endif; ?>
                                     <a href="<?= e($downloadUrl) ?>"><?= e($itemName) ?></a>
                                 </div>
                             </td>
@@ -1531,10 +1540,10 @@ $isRootDir  = ($requestedPath === '');
                                 <a href="<?= e($hashUrl) ?>" class="hash-link" aria-label="Check hash for <?= e($itemName) ?>">Hash</a>
                             </td>
                         </tr>
-                        <?php endif; ?>
+                            <?php endif; ?>
                         <?php endforeach; ?>
 
-                        <?php if (empty($entries)): ?>
+                        <?php if (empty($entries)) : ?>
                         <tr id="emptyRow">
                             <td colspan="4">
                                 <div class="empty-state">

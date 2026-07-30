@@ -1,4 +1,5 @@
 <?php
+
 /**
  * ==============================================================================
  *  File & Directory Browser (index.php)
@@ -118,7 +119,11 @@
 declare(strict_types=1);
 
 ob_start();
-register_shutdown_function(function() { if (ob_get_level() > 0) { ob_end_flush(); } });
+register_shutdown_function(function () {
+    if (ob_get_level() > 0) {
+        ob_end_flush();
+    }
+});
 
 // =================== RUNTIME / VERSION GUARD ===================
 if (version_compare(PHP_VERSION, '8.0', '<')) {
@@ -548,11 +553,11 @@ function renderPasswordPage(string $lockedFolder, string|null $error, string $no
                 <p class="text-muted small">Folder <code class="text-info"><?php echo e($lockedFolder); ?></code> memerlukan password untuk diakses.</p>
             </div>
 
-            <?php if ($isLocked): ?>
+            <?php if ($isLocked) : ?>
                 <div class="alert alert-danger py-2 text-center small mb-3">
                     <i class="fas fa-lock me-1"></i> Terlalu banyak percobaan salah.<br>Silakan coba lagi dalam <span id="lock-countdown"><?php echo $lockTimeRemaining; ?></span> detik.
                 </div>
-            <?php elseif ($error !== null): ?>
+            <?php elseif ($error !== null) : ?>
                 <div class="alert alert-danger py-2 text-center small mb-3">
                     <i class="fas fa-exclamation-circle me-1"></i> <?php echo e($error); ?>
                 </div>
@@ -576,7 +581,7 @@ function renderPasswordPage(string $lockedFolder, string|null $error, string $no
             </form>
         </div>
         <script nonce="<?php echo e($nonce); ?>">(function(){const e=document.getElementById("theme-toggle-pw");if(e){const n=()=>{const t=document.documentElement.classList.contains("dark-mode"),o=e.querySelector("i");o&&(o.className=t?"fas fa-sun":"fas fa-moon")};n(),e.addEventListener("click",()=>{document.documentElement.classList.toggle("dark-mode");const t=document.documentElement.classList.contains("dark-mode");localStorage.setItem("theme",t?"dark":"light"),n()})}})();</script>
-        <?php if ($isLocked): ?>
+        <?php if ($isLocked) : ?>
         <script nonce="<?php echo e($nonce); ?>">(function(){var n=<?php echo (int) $lockTimeRemaining; ?>,t=document.getElementById("lock-countdown"),o=setInterval(function(){n--,t&&(t.textContent=n),n<=0&&(clearInterval(o),window.location.reload())},1e3)})();</script>
         <?php endif; ?>
     </body>
@@ -930,7 +935,7 @@ function writeHashCache(string $cacheFile, array $hashData): void
     try {
         $rand = bin2hex(random_bytes(8));
     } catch (Throwable) {
-        $rand = uniqid('', true);
+        $rand = uniqid('', true); // DevSkim: ignore DS173237
     }
     $tmpFile = $cacheFile . '.' . $rand . '.tmp';
     $json = json_encode($hashData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
@@ -956,8 +961,8 @@ function calculateHashes(string $fullFilePath, int $chunkSize): array|false
 
     // These hash algorithms are used for file integrity checksum generation (non-cryptographic context)
     $ctxCrc32 = hash_init('crc32b');
-    $ctxMd5   = hash_init('md5'); // NOSONAR
-    $ctxSha1  = hash_init('sha1'); // NOSONAR
+    $ctxMd5   = hash_init('md5'); // NOSONAR DevSkim: ignore DS126858
+    $ctxSha1  = hash_init('sha1'); // NOSONAR DevSkim: ignore DS126859
 
     while (!feof($handle)) {
         $buffer = fread($handle, $chunkSize);
@@ -977,8 +982,8 @@ function calculateHashes(string $fullFilePath, int $chunkSize): array|false
 
     return [
         'crc32' => hash_final($ctxCrc32),
-        'md5'   => hash_final($ctxMd5),
-        'sha1'  => hash_final($ctxSha1),
+        'md5'   => hash_final($ctxMd5),  // DevSkim: ignore DS126858
+        'sha1'  => hash_final($ctxSha1), // DevSkim: ignore DS126859
     ];
 }
 
@@ -1037,7 +1042,7 @@ function renderHashPage(string $fileName, int $fileSize, array $hashData, string
                                     </td>
                                 </tr>
                                 <tr>
-                                    <th>MD5</th>
+                                    <th>MD5</th> <!-- DevSkim: ignore DS126858 -->
                                     <td>
                                         <div class="d-flex align-items-center justify-content-between">
                                             <span class="hash-value"><?php echo e($hashData['md5']); ?></span>
@@ -1048,7 +1053,7 @@ function renderHashPage(string $fileName, int $fileSize, array $hashData, string
                                     </td>
                                 </tr>
                                 <tr>
-                                    <th>SHA-1</th>
+                                    <th>SHA-1</th> <!-- DevSkim: ignore DS126859 -->
                                     <td>
                                         <div class="d-flex align-items-center justify-content-between">
                                             <span class="hash-value"><?php echo e($hashData['sha1']); ?></span>
@@ -1227,8 +1232,8 @@ try {
 
 // =================== FOLDER PROTECTION CHECK ===================
 $accessedDir = '';
-if (isset($_GET['md5'])) {
-    $requestedFile = sanitizePath((string) $_GET['md5']);
+if (isset($_GET['md5'])) { // DevSkim: ignore DS126858
+    $requestedFile = sanitizePath((string) $_GET['md5']); // DevSkim: ignore DS126858
     $accessedDir = sanitizePath(dirname($requestedFile));
 } elseif (isset($_GET['berkas'])) {
     $accessedDir = sanitizePath((string) $_GET['berkas']);
@@ -1317,8 +1322,8 @@ if (session_status() === PHP_SESSION_ACTIVE) {
 }
 
 // =================== HASH CHECK WITH CACHE ===================
-if (isset($_GET['md5'])) {
-    $requestedFile = sanitizePath((string) $_GET['md5']);
+if (isset($_GET['md5'])) { // DevSkim: ignore DS126858
+    $requestedFile = sanitizePath((string) $_GET['md5']); // DevSkim: ignore DS126858
 
     if (!isDisplayableFile($requestedFile, $showHiddenFiles, $filesToHide, $dangerousExtensions)) {
         http_response_code(404);
@@ -1525,11 +1530,11 @@ $alignmentClass = match ($alignment) {
     <main class="container text-start mt-4">
         <nav class="repo-pathbar" aria-label="Lokasi folder">
             <span class="repo-pathbar-trail">
-                <?php if ($currentDir === ''): ?>
+                <?php if ($currentDir === '') : ?>
                     <span class="repo-pathbar-current" aria-current="page">
                         <i class="fas fa-home" aria-hidden="true"></i> Home
                     </span>
-                <?php else: ?>
+                <?php else : ?>
                     <a href="?"><i class="fas fa-home" aria-hidden="true"></i> Home</a>
                     <?php
                     // array_values() ensures 0-based sequential keys after array_filter()
@@ -1568,12 +1573,12 @@ $alignmentClass = match ($alignment) {
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if ($showParent && $currentDir !== ''):
+                        <?php if ($showParent && $currentDir !== '') :
                             $parentDir = sanitizePath(dirname($currentDir));
                             if ($parentDir === '.') {
                                 $parentDir = '';
                             }
-                        ?>
+                            ?>
                         <tr class="parent-row">
                             <td class="text-break">
                                 <a href="<?php echo e(queryUrl(['berkas' => $parentDir])); ?>" class="folder-link d-flex align-items-center">
@@ -1590,7 +1595,7 @@ $alignmentClass = match ($alignment) {
                         <?php
                         // Pre-compute once outside the loop for performance
                         $protectedFoldersLower = array_change_key_case($protectedFolders, CASE_LOWER);
-                        foreach ($items as $item):
+                        foreach ($items as $item) :
                             $itemName = (string) $item['name'];
                             $relativePath = (string) $item['relative'];
                             $iconClass = $item['isDir'] ? 'fa-folder' : getFileIconClass($itemName);
@@ -1598,18 +1603,18 @@ $alignmentClass = match ($alignment) {
                                 ? queryUrl(['berkas' => $relativePath])
                                 : encodeRelativePath($relativePath);
                             $itemTime = (int) $item['time'];
-                        ?>
+                            ?>
                         <tr data-name="<?php echo e(strtolower($itemName)); ?>">
                             <td class="text-break">
                                 <a href="<?php echo e($link); ?>" class="<?php echo $item['isDir'] ? 'folder-link' : 'file-link'; ?> d-flex align-items-center">
                                     <i class="fas <?php echo e($iconClass); ?> file-icon"></i>
                                     <span><?php echo e($itemName); ?></span>
-                                    <?php if ($item['isDir'] && array_key_exists(strtolower($relativePath), $protectedFoldersLower)): ?>
+                                    <?php if ($item['isDir'] && array_key_exists(strtolower($relativePath), $protectedFoldersLower)) : ?>
                                         <small class="ms-2 text-warning" title="Password Protected">
                                             <i class="fas fa-lock"></i>
                                         </small>
                                     <?php endif; ?>
-                                    <?php if ($item['isSymlink']): ?>
+                                    <?php if ($item['isSymlink']) : ?>
                                         <small class="symlink-badge" title="Symbolic Link">
                                             <i class="fas fa-link"></i>
                                         </small>
@@ -1622,19 +1627,19 @@ $alignmentClass = match ($alignment) {
                             </td>
                             <td class="table-col-size"><?php echo $item['isDir'] ? '-' : e(humanizeFilesize((int) $item['size'], $sizeDecimals)); ?></td>
                             <td class="table-col-hash">
-                                <?php if (!$item['isDir']): ?>
-                                    <a href="<?php echo e(queryUrl(['md5' => $relativePath])); ?>"
+                                <?php if (!$item['isDir']) : ?>
+                                    <a href="<?php echo e(queryUrl(['md5' => $relativePath])); ?>" <?php // DevSkim: ignore DS126858 ?>
                                        title="Check Hash" aria-label="Check hash for <?php echo e($itemName); ?>">
                                         <i class="fas fa-fingerprint" aria-hidden="true"></i>
                                     </a>
-                                <?php else: ?>
+                                <?php else : ?>
                                     -
                                 <?php endif; ?>
                             </td>
                         </tr>
                         <?php endforeach; ?>
 
-                        <?php if (empty($items)): ?>
+                        <?php if (empty($items)) : ?>
                         <tr>
                             <td colspan="4" class="text-center text-muted py-5">
                                 <i class="fas fa-folder-open fa-3x mb-3 text-secondary opacity-50"></i>

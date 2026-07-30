@@ -1,4 +1,5 @@
 <?php
+
 /**
  * ==============================================================================
  *  File & Directory Browser (index.php)
@@ -391,23 +392,21 @@ function getDocumentIconClass(string $ext): string
  */
 function getMediaIconClass(string $ext): string
 {
+    $icon = '';
     $imageExts = ['jpg', 'jpeg', 'jfif', 'png', 'gif', 'bmp', 'svg', 'webp',
                   'tiff', 'tif', 'ico', 'heic', 'heif', 'avif', 'psd', 'ai', 'eps', 'raw', 'cr2', 'nef'];
-    if (in_array($ext, $imageExts, true)) {
-        return 'fa-file-image';
-    }
-
     $audioExts = ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'wma', 'midi', 'mid', 'opus', 'aiff', 'amr'];
-    if (in_array($ext, $audioExts, true)) {
-        return 'fa-file-audio';
-    }
-
     $videoExts = ['mp4', 'avi', 'mov', 'wmv', 'mkv', 'webm', 'flv', 'mpeg', 'mpg', '3gp', 'm4v', 'ogv', 'vob'];
-    if (in_array($ext, $videoExts, true)) {
-        return 'fa-file-video';
+
+    if (in_array($ext, $imageExts, true)) {
+        $icon = 'fa-file-image';
+    } elseif (in_array($ext, $audioExts, true)) {
+        $icon = 'fa-file-audio';
+    } elseif (in_array($ext, $videoExts, true)) {
+        $icon = 'fa-file-video';
     }
 
-    return '';
+    return $icon;
 }
 
 /**
@@ -527,27 +526,37 @@ function createHashCacheDir(string $baseDir): string|false
 
     if (is_link($cacheDir)) {
         error_log('Hash cache disabled because .cache is a symlink.');
-        return false;
-    }
-
-    if (!is_dir($cacheDir) && !@mkdir($cacheDir, 0750, true) && !is_dir($cacheDir)) {
+        $cacheDir = false;
+    } elseif (!is_dir($cacheDir) && !@mkdir($cacheDir, 0750, true) && !is_dir($cacheDir)) {
         error_log('Hash cache disabled because .cache cannot be created.');
-        return false;
-    }
-
-    if (!is_writable($cacheDir)) {
+        $cacheDir = false;
+    } elseif (!is_writable($cacheDir)) {
         error_log('Hash cache disabled because .cache is not writable.');
-        return false;
-    }
-
-    // Write htaccess to protect cache files from public exposure
-    $htaccessFile = $cacheDir . DIRECTORY_SEPARATOR . '.htaccess';
-    if (!is_file($htaccessFile)) {
-        $content = "<IfModule authz_core_module>\n    Require all denied\n</IfModule>\n<IfModule !authz_core_module>\n    Deny from all\n</IfModule>\n";
-        @file_put_contents($htaccessFile, $content);
+        $cacheDir = false;
+    } else {
+        // Write htaccess to protect cache files from public exposure
+        $htaccessFile = $cacheDir . DIRECTORY_SEPARATOR . '.htaccess';
+        if (!is_file($htaccessFile)) {
+            $content = "<IfModule authz_core_module>\n    Require all denied\n</IfModule>\n<IfModule !authz_core_module>\n    Deny from all\n</IfModule>\n";
+            @file_put_contents($htaccessFile, $content);
+        }
     }
 
     return $cacheDir;
+}
+
+function isValidHashData(mixed $data): bool
+{
+    if (!is_array($data)) {
+        return false;
+    }
+    foreach (['crc32', 'md5', 'sha1'] as $key) {
+        $val = $data[$key] ?? null;
+        if (!is_string($val) || !preg_match('/^[a-f0-9]+$/', $val)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 function readHashCache(string $cacheFile): array|null
@@ -562,17 +571,8 @@ function readHashCache(string $cacheFile): array|null
     }
 
     $data = json_decode($raw, true);
-    if (!is_array($data)) {
-        return null;
-    }
 
-    foreach (['crc32', 'md5', 'sha1'] as $key) {
-        if (!isset($data[$key]) || !is_string($data[$key]) || !preg_match('/^[a-f0-9]+$/', $data[$key])) {
-            return null;
-        }
-    }
-
-    return $data;
+    return isValidHashData($data) ? $data : null;
 }
 
 function writeHashCache(string $cacheFile, array $hashData): void
@@ -580,7 +580,7 @@ function writeHashCache(string $cacheFile, array $hashData): void
     try {
         $rand = bin2hex(random_bytes(8));
     } catch (Throwable) {
-        $rand = uniqid('', true);
+        $rand = uniqid('', true); // DevSkim: ignore DS173237
     }
     $tmpFile = $cacheFile . '.' . $rand . '.tmp';
     $json = json_encode($hashData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
@@ -626,8 +626,8 @@ function calculateHashes(string $fullFilePath, int $chunkSize): array|false
 
     return [
         'crc32' => hash_final($ctxCrc32),
-        'md5'   => hash_final($ctxMd5),
-        'sha1'  => hash_final($ctxSha1),
+        'md5'   => hash_final($ctxMd5),  // DevSkim: ignore DS126858
+        'sha1'  => hash_final($ctxSha1), // DevSkim: ignore DS126859
     ];
 }
 
@@ -754,12 +754,12 @@ function renderHashPage(string $fileName, int $fileSize, array $hashData, string
                                     <td class="hash-value"><?php echo e($hashData['crc32']); ?></td>
                                 </tr>
                                 <tr>
-                                    <th>MD5</th>
-                                    <td class="hash-value"><?php echo e($hashData['md5']); ?></td>
+                                    <th>MD5</th> <!-- DevSkim: ignore DS126858 -->
+                                    <td class="hash-value"><?php echo e($hashData['md5']); ?></td> <!-- DevSkim: ignore DS126858 -->
                                 </tr>
                                 <tr>
-                                    <th>SHA-1</th>
-                                    <td class="hash-value"><?php echo e($hashData['sha1']); ?></td>
+                                    <th>SHA-1</th> <!-- DevSkim: ignore DS126859 -->
+                                    <td class="hash-value"><?php echo e($hashData['sha1']); ?></td> <!-- DevSkim: ignore DS126859 -->
                                 </tr>
                             </tbody>
                         </table>
@@ -805,8 +805,10 @@ function buildDirectoryEntry(
     bool $isSymlink
 ): array {
     $relativeItemPath = trim($path . '/' . $file, '/');
-    $itemSize         = $isDir ? 0 : (int) (@filesize($itemRealPath) ?: 0);
-    $itemTime         = (int) (@filemtime($itemRealPath) ?: 0);
+    $fileSize         = $isDir ? false : @filesize($itemRealPath);
+    $itemSize         = ($fileSize !== false) ? (int) $fileSize : 0;
+    $fileMtime        = @filemtime($itemRealPath);
+    $itemTime         = ($fileMtime !== false) ? (int) $fileMtime : 0;
     $stat             = @stat($itemRealPath);
     $itemCreated      = (is_array($stat) && isset($stat['birthtime']) && (int) $stat['birthtime'] > 0)
         ? (int) $stat['birthtime']
@@ -823,62 +825,54 @@ function buildDirectoryEntry(
     ];
 }
 
+function processDirectoryItem(
+    string $file,
+    string $path,
+    string $fullPath,
+    bool $showFolders,
+    bool $showHidden
+): array|null {
+    global $baseDir, $filesToHide, $dangerousExtensions, $allowExternalSymlinks;
+
+    if ($file !== '.' && $file !== '..' && !isHiddenName($file, $showHidden, $filesToHide)) {
+        $linkPath  = $fullPath . DIRECTORY_SEPARATOR . $file;
+        $isSymlink = is_link($linkPath);
+        $itemRealPath = $isSymlink ? resolveSymlinkEntry($linkPath, $baseDir, $allowExternalSymlinks) : $linkPath;
+
+        if ($itemRealPath !== false) {
+            $isDir = is_dir($itemRealPath);
+            $skip  = ($isDir && !$showFolders) || (!$isDir && isDangerousExtension($file, $dangerousExtensions));
+            if (!$skip) {
+                return buildDirectoryEntry($file, $path, $itemRealPath, $isDir, $isSymlink);
+            }
+        }
+    }
+
+    return null;
+}
+
 function listDirectory(string $path, bool $showFolders = true, bool $showHidden = false): array
 {
-    global $totalFiles, $totalSize, $baseDir, $filesToHide, $dangerousExtensions, $allowExternalSymlinks;
+    global $totalFiles, $totalSize, $baseDir, $filesToHide, $allowExternalSymlinks;
 
     $items = [];
     $path  = sanitizePath($path);
 
-    if (!isDisplayableFolder($path, $showHidden, $filesToHide)) {
-        return $items;
-    }
+    if (isDisplayableFolder($path, $showHidden, $filesToHide)) {
+        $fullPath = resolveExistingPath($path, $baseDir, $allowExternalSymlinks);
+        $files    = ($fullPath !== false && is_dir($fullPath) && is_readable($fullPath)) ? @scandir($fullPath) : false;
 
-    $fullPath = resolveExistingPath($path, $baseDir, $allowExternalSymlinks);
-    if ($fullPath === false || !is_dir($fullPath) || !is_readable($fullPath)) {
-        return $items;
-    }
-
-    $files = @scandir($fullPath);
-    if ($files === false) {
-        return $items;
-    }
-
-    foreach ($files as $file) {
-        if ($file === '.' || $file === '..') {
-            continue;
-        }
-        if (isHiddenName($file, $showHidden, $filesToHide)) {
-            continue;
-        }
-
-        $linkPath  = $fullPath . DIRECTORY_SEPARATOR . $file;
-        $isSymlink = is_link($linkPath);
-
-        // Resolve symlink or use direct path
-        if ($isSymlink) {
-            $itemRealPath = resolveSymlinkEntry($linkPath, $baseDir, $allowExternalSymlinks);
-            if ($itemRealPath === false) {
-                continue;
+        if (is_array($files)) {
+            foreach ($files as $file) {
+                $entry = processDirectoryItem($file, $path, $fullPath, $showFolders, $showHidden);
+                if ($entry !== null) {
+                    $items[] = $entry;
+                    if (!$entry['isDir']) {
+                        $totalFiles++;
+                        $totalSize += $entry['size'];
+                    }
+                }
             }
-        } else {
-            $itemRealPath = $linkPath;
-        }
-
-        $isDir = is_dir($itemRealPath);
-        if ($isDir && !$showFolders) {
-            continue;
-        }
-        if (!$isDir && isDangerousExtension($file, $dangerousExtensions)) {
-            continue;
-        }
-
-        $entry   = buildDirectoryEntry($file, $path, $itemRealPath, $isDir, $isSymlink);
-        $items[] = $entry;
-
-        if (!$isDir) {
-            $totalFiles++;
-            $totalSize += $entry['size'];
         }
     }
 
@@ -903,8 +897,8 @@ if (session_status() === PHP_SESSION_ACTIVE) {
 }
 
 // =================== HASH CHECK WITH CACHE ===================
-if (isset($_GET['md5'])) {
-    $requestedFile = sanitizePath((string) $_GET['md5']);
+if (isset($_GET['md5'])) { // DevSkim: ignore DS126858
+    $requestedFile = sanitizePath((string) $_GET['md5']); // DevSkim: ignore DS126858
 
     if (!isDisplayableFile($requestedFile, $showHiddenFiles, $filesToHide, $dangerousExtensions)) {
         http_response_code(404);
@@ -1705,13 +1699,24 @@ $alignmentClass = match ($alignment) {
                     define('BTN_ACTIVE', ' active');
                     $nameOrder  = ($sort === 'name' && $order === 'asc') ? 'desc' : 'asc';
                     $nameClass  = $sort === 'name' ? BTN_ACTIVE : '';
-                    $nameIcon   = $sort === 'name' ? ($order === 'asc' ? 'fa-sort-alpha-down' : 'fa-sort-alpha-up') : 'fa-sort-alpha-down';
+                    $nameIcon   = 'fa-sort-alpha-down';
+                if ($sort === 'name') {
+                    $nameIcon = ($order === 'asc') ? 'fa-sort-alpha-down' : 'fa-sort-alpha-up';
+                }
+
                     $dateOrder  = ($sort === 'modified' && $order === 'asc') ? 'desc' : 'asc';
                     $dateClass  = $sort === 'modified' ? BTN_ACTIVE : '';
-                    $dateIcon   = $sort === 'modified' ? ($order === 'asc' ? 'fa-sort-amount-down' : 'fa-sort-amount-up') : 'fa-calendar-alt';
+                    $dateIcon   = 'fa-calendar-alt';
+                if ($sort === 'modified') {
+                    $dateIcon = ($order === 'asc') ? 'fa-sort-amount-down' : 'fa-sort-amount-up';
+                }
+
                     $sizeOrder  = ($sort === 'size' && $order === 'asc') ? 'desc' : 'asc';
                     $sizeClass  = $sort === 'size' ? BTN_ACTIVE : '';
-                    $sizeIcon   = $sort === 'size' ? ($order === 'asc' ? 'fa-sort-numeric-down' : 'fa-sort-numeric-up') : 'fa-weight-hanging';
+                    $sizeIcon   = 'fa-weight-hanging';
+                if ($sort === 'size') {
+                    $sizeIcon = ($order === 'asc') ? 'fa-sort-numeric-down' : 'fa-sort-numeric-up';
+                }
                 ?>
                 <div class="sort-buttons">
                     <a href="<?php echo e(queryUrl(['folder' => $currentDir, 'sort' => 'name', 'order' => $nameOrder])); ?>"
@@ -1742,16 +1747,16 @@ $alignmentClass = match ($alignment) {
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if ($showParent && $currentDir !== ''):
+                        <?php if ($showParent && $currentDir !== '') :
                             $parentDir = sanitizePath(dirname($currentDir));
                             if ($parentDir === '.') {
                                 $parentDir = '';
                             }
-                        ?>
+                            ?>
                         <tr class="parent-row">
                             <td colspan="4">
                                 <a href="<?php echo e(queryUrl(['folder' => $parentDir])); ?>" class="d-flex align-items-center">
-                                    <?php if ($showIcons): ?>
+                                    <?php if ($showIcons) : ?>
                                         <i class="fas fa-arrow-up file-icon"></i>
                                     <?php endif; ?>
                                     Parent Directory
@@ -1760,7 +1765,7 @@ $alignmentClass = match ($alignment) {
                         </tr>
                         <?php endif; ?>
 
-                        <?php foreach ($items as $item):
+                        <?php foreach ($items as $item) :
                             $itemName = (string) $item['name'];
                             $relativePath = (string) $item['relative'];
                             $iconClass = $item['isDir'] ? 'fa-folder' : getFileIconClass($itemName);
@@ -1768,15 +1773,15 @@ $alignmentClass = match ($alignment) {
                                 ? queryUrl(['folder' => $relativePath])
                                 : encodeRelativePath($relativePath);
                             $itemTime = (int) $item['time'];
-                        ?>
+                            ?>
                         <tr data-name="<?php echo e(strtolower($itemName)); ?>">
                             <td class="col-name">
                                 <a href="<?php echo e($link); ?>" class="d-flex align-items-center">
-                                    <?php if ($showIcons): ?>
+                                    <?php if ($showIcons) : ?>
                                         <i class="fas <?php echo e($iconClass); ?> file-icon"></i>
                                     <?php endif; ?>
                                     <span><?php echo e($itemName); ?></span>
-                                    <?php if ($item['isSymlink']): ?>
+                                    <?php if ($item['isSymlink']) : ?>
                                         <small class="symlink-badge" title="Symbolic Link">
                                             <i class="fas fa-link"></i>
                                         </small>
@@ -1786,20 +1791,20 @@ $alignmentClass = match ($alignment) {
                             <td class="col-date"><?php echo $itemTime > 0 ? e(date($dateFormat, $itemTime)) : '-'; ?></td>
                             <td class="col-size"><?php echo $item['isDir'] ? '-' : e(humanizeFilesize((int) $item['size'], $sizeDecimals)); ?></td>
                             <td class="col-hash text-center">
-                                <?php if (!$item['isDir']): ?>
-                                    <a href="<?php echo e(queryUrl(['md5' => $relativePath])); ?>"
+                                <?php if (!$item['isDir']) : ?>
+                                    <a href="<?php echo e(queryUrl(['md5' => $relativePath])); ?>" <?php // DevSkim: ignore DS126858 ?>
                                        class="btn btn-sm btn-outline-info"
                                        title="Check Hash">
                                         <i class="fas fa-key"></i>
                                     </a>
-                                <?php else: ?>
+                                <?php else : ?>
                                     -
                                 <?php endif; ?>
                             </td>
                         </tr>
                         <?php endforeach; ?>
 
-                        <?php if (empty($items)): ?>
+                        <?php if (empty($items)) : ?>
                         <tr>
                             <td colspan="4" class="text-center text-muted py-5">
                                 <i class="fas fa-folder-open fa-3x mb-3 text-secondary opacity-50"></i>
