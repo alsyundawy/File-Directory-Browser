@@ -16,11 +16,21 @@
 
 ## Bahasa Indonesia
 
-**File & Directory Browser** adalah script PHP tunggal (*single-file PHP script*) yang aman, responsif, dan sangat ringan untuk menampilkan daftar file serta direktori. Dilengkapi dengan fitur pengurutan instan, pencarian real-time tanpa reload halaman, verifikasi hash file (CRC32, MD5, SHA-1) menggunakan sistem cache lokal, perlindungan ketat dari eksploitasi path traversal, proteksi folder berbasis password dengan bcrypt hashing, serta antarmuka modern bertema *glassmorphic* berbasis Bootstrap 5 dan Font Awesome 6.
+**File & Directory Browser** adalah script PHP tunggal (*single-file PHP script*) yang aman,
+responsif, dan sangat ringan untuk menampilkan daftar file serta direktori. Dilengkapi dengan
+fitur pengurutan instan, pencarian real-time tanpa reload halaman, verifikasi hash file
+(CRC32, MD5, SHA-1) menggunakan sistem cache lokal, perlindungan ketat dari eksploitasi
+path traversal, proteksi folder berbasis password dengan bcrypt hashing, serta antarmuka
+modern bertema *glassmorphic* berbasis Bootstrap 5 dan Font Awesome 6.
 
 ## English
 
-**File & Directory Browser** is a security-hardened, highly responsive, and lightweight single-file PHP script designed to display file and directory lists. It features real-time search without reloading, instant sorting, file hash verification (CRC32, MD5, SHA-1) with a local caching mechanism, strict protection against path traversal attacks, bcrypt-secured password-protected folders, and a premium glassmorphic user interface built using Bootstrap 5 and Font Awesome 6.
+**File & Directory Browser** is a security-hardened, highly responsive, and lightweight
+single-file PHP script designed to display file and directory lists. It features real-time search
+without reloading, instant sorting, file hash verification (CRC32, MD5, SHA-1) with a local
+caching mechanism, strict protection against path traversal attacks, bcrypt-secured
+password-protected folders, and a premium glassmorphic user interface built using
+Bootstrap 5 and Font Awesome 6.
 
 ---
 
@@ -117,27 +127,52 @@ $protectedFolders = [
 ### Version 3.8 (29-30 Juli 2026 / July 29-30, 2026) — Security Hardening, DevSkim, CSP Compliance & Code Quality
 
 - **🔒 SECURITY \[CSP & DevSkim\] — DevSkim Security Scan & CSP Compliance:**
-  - Standardized CSRF token generation using cryptographically secure `bin2hex(random_bytes(32))` instead of non-cryptographic time-based hashing (`uniqid` + `microtime`). Added explicit DevSkim ignore annotations (`DS173237`, `DS126858`, `DS126859`) for intentional file checksum features (`md5`, `sha1`), query string parameters, and filesystem cache keys.
-  - Removed `javascript:history.back()` URI from hash page back-link; replaced with a proper `<button id="backBtn">` handled via nonce script block to fully comply with strict CSP `script-src` policy.
-  - Removed inline `style="display:none"` from `#noResultRow` element; moved to CSS class `.hidden-row` to comply with strict CSP `style-src` policy.
-  - Added `nonce` attribute to `<noscript><style>` blocks on all pages for consistent CSP compliance across all rendering paths.
-  - Port number in `getSafeHost()` is now validated to be within valid TCP range (1–65535) to prevent malformed Host header injection via out-of-range port values.
+  - Standardized CSRF token generation using cryptographically secure `bin2hex(random_bytes(32))`
+    instead of non-cryptographic time-based hashing (`uniqid` + `microtime`). Added explicit DevSkim
+    ignore annotations (`DS197836`, `DS126858`) for intentional file checksum features
+    (`md5`, `sha1`), query string parameters, and filesystem cache keys.
+  - Removed `javascript:history.back()` URI from hash page back-link; replaced with a proper
+    `<button id="backBtn">` handled via nonce script block to fully comply with strict CSP
+    `script-src` policy.
+  - Removed inline `style="display:none"` from `#noResultRow` element; moved to CSS class
+    `.hidden-row` to comply with strict CSP `style-src` policy.
+  - Added `nonce` attribute to `<noscript><style>` blocks on all pages for consistent CSP
+    compliance across all rendering paths.
+  - Port number in `getSafeHost()` is now validated to be within valid TCP range (1–65535)
+    to prevent malformed Host header injection via out-of-range port values.
 - **🐛 BUG FIXES:**
-  - Fixed column misalignment in table body — directory rows had 5 `<td>` elements (date-primary + date-secondary as separate columns) while file rows had 4. Unified date display so both dir and file rows use a single `<td class="date-cell">` containing both primary and secondary spans inside, matching thead column count of 4.
-  - `sanitizePath()` `preg_replace` with `/u` modifier now has explicit fallback if the regex fails due to invalid UTF-8 input, preventing silent null return.
-  - `ensureCacheDir()` now checks `mkdir()` return value and logs error on failure instead of silently continuing, preventing obscure cache-write errors downstream.
-  - `calculateHashes()` now calls `error_log()` when `fopen()` fails, improving production debuggability.
-  - `writeHashCache()` now verifies return value of `rename()` and logs on failure, ensuring temp file cleanup even on rename failure.
+  - Fixed column misalignment in table body — directory rows had 5 `<td>` elements (date-primary
+    and date-secondary as separate columns) while file rows had 4. Unified date display so both dir
+    and file rows use a single `<td class="date-cell">` containing both primary and secondary
+    spans inside, matching thead column count of 4.
+  - `sanitizePath()` `preg_replace` with `/u` modifier now has explicit fallback if the regex
+    fails due to invalid UTF-8 input, preventing silent null return.
+  - `ensureCacheDir()` now checks `mkdir()` return value and logs error on failure instead of
+    silently continuing, preventing obscure cache-write errors downstream.
+  - `calculateHashes()` now calls `error_log()` when `fopen()` fails, improving production
+    debuggability.
+  - `writeHashCache()` now verifies return value of `rename()` and logs on failure, ensuring
+    temp file cleanup even on rename failure.
 - **✨ IMPROVEMENTS:**
-  - `humanizeFilesize()` now uses `number_format()` instead of `round()` to ensure consistent decimal display (e.g., "1.0 MB" not "1 MB").
-  - `humanizeFilesize()` caches `count($units)` before the loop to avoid repeated function calls on every iteration.
-  - `$unlockedSessions` reference at directory browsing section replaced with explicit null-safe array initialization to prevent potential reference warnings.
-  - Added `$_GET['sort'] ?? 'name'` and `$_GET['order'] ?? 'asc'` with explicit null coalescing before allowlist check for strict_types safety.
+  - `humanizeFilesize()` now uses `number_format()` instead of `round()` to ensure consistent
+    decimal display (e.g., "1.0 MB" not "1 MB").
+  - `humanizeFilesize()` caches `count($units)` before the loop to avoid repeated function calls
+    on every iteration.
+  - `$unlockedSessions` reference at directory browsing section replaced with explicit null-safe
+    array initialization to prevent potential reference warnings.
+  - Added `$_GET['sort'] ?? 'name'` and `$_GET['order'] ?? 'asc'` with explicit null coalescing
+    before allowlist check for strict_types safety.
 - **🛠️ CODE QUALITY & LINTER COMPLIANCE (PHPCS & Sonar):**
-  - **PHP CodeSniffer (PHPCS)**: Executed `phpcbf` and manual formatting fixes across all PHP files to resolve all syntax, indentation, and spacing errors (0 PHPCS errors remaining).
-  - **Multiple Returns Reduction**: Refactored `getMediaIconClass()`, `createHashCacheDir()`, `readHashCache()`, and `listDirectory()` to reduce multiple return statements (max 1 per function).
-  - **Cognitive Complexity**: Extracted `isValidHashData()` and `processDirectoryItem()` helper functions, reducing cognitive complexity in `readHashCache()` (from 22 to 2) and `listDirectory()` (from 24 to 6).
-  - **Nested Ternaries & Parameter Limits**: Replaced nested ternary operations in `buildDirectoryEntry()` and sort button icons (`$nameIcon`, `$dateIcon`, `$sizeIcon`) with clear `if` statements. Reduced parameter count of `processDirectoryItem()` from 9 to 5.
+  - **PHP CodeSniffer (PHPCS)**: Executed `phpcbf` and manual formatting fixes across all PHP
+    files to resolve all syntax, indentation, and spacing errors (0 PHPCS errors remaining).
+  - **Multiple Returns Reduction**: Refactored `getMediaIconClass()`, `createHashCacheDir()`,
+    `readHashCache()`, and `listDirectory()` to reduce multiple return statements (max 1 per function).
+  - **Cognitive Complexity**: Extracted `isValidHashData()`, `processDirectoryItem()`, and
+    `getScandirFiles()` helper functions, reducing cognitive complexity in `readHashCache()`
+    (from 22 to 2) and `listDirectory()` (from 24 to 3).
+  - **Nested Ternaries & Parameter Limits**: Replaced nested ternary operations in
+    `buildDirectoryEntry()` and sort button icons (`$nameIcon`, `$dateIcon`, `$sizeIcon`) with
+    clear `if` statements. Reduced parameter count of `processDirectoryItem()` from 9 to 5.
 
 ### Version 3.7 (18 Juli 2026 / July 18, 2026) — Bug Fix, Security Hardening & Code Quality
 
@@ -334,7 +369,8 @@ $protectedFolders = [
 > 1. **Hak Akses Direktori Cache:** Pastikan direktori tempat script dijalankan memiliki izin tulis (*write permission*) agar script dapat membuat direktori `.cache` otomatis. Jika hak akses tidak tersedia, fitur penyimpanan cache hash akan dinonaktifkan demi keselamatan runtime.
 > 2. **Dukungan SSL/HTTPS:** Untuk keamanan optimal, jalankan script ini di lingkungan yang didukung HTTPS untuk menjamin enkripsi cookie sesi CSRF dan token transit.
 > 3. **Pemblokiran File Sensitif:** Secara bawaan, script memblokir file berekstensi seperti `.php`, `.bat`, `.env`, `.sql`, dan sejenisnya untuk mencegah eksekusi kode berbahaya serta kebocoran informasi kredensial.
-> 4. **Password Folder — Wajib Hash:** Password untuk fitur proteksi folder **TIDAK BOLEH** disimpan dalam bentuk teks biasa (plaintext). Gunakan selalu hasil dari `password_hash('password_anda', PASSWORD_BCRYPT)`. Jalankan perintah berikut untuk generate hash: `php -r "echo password_hash('password_anda', PASSWORD_BCRYPT);"`.
+> 4. **Password Folder — Wajib Hash:** Password untuk fitur proteksi folder **TIDAK BOLEH** disimpan dalam bentuk teks biasa (plaintext). Gunakan selalu hasil dari `password_hash('password_anda', PASSWORD_BCRYPT)`. Jalankan perintah berikut untuk generate hash:
+>    `php -r "echo password_hash('password_anda', PASSWORD_BCRYPT);"`
 > 5. **CSP & Inline Event Handler:** Script ini menggunakan Content-Security-Policy berbasis nonce. Inline `onclick=""` attribute pada HTML akan diblokir oleh CSP — semua event listener harus didaftarkan dalam `<script nonce="...">` block.
 >
 > ### 🇬🇧 English (DocNote)
@@ -342,7 +378,8 @@ $protectedFolders = [
 > 1. **Cache Folder Permissions:** Ensure that the directory where the script executes has write permissions so it can spawn the `.cache` folder automatically. If permissions are missing, hash caching will be bypassed gracefully to ensure execution.
 > 2. **HTTPS/SSL Deployment:** It is highly recommended to host this script under an SSL/HTTPS enabled domain to guarantee safe transit of session cookies and browser tokens.
 > 3. **Exclusion of Sensitive Files:** By default, critical file formats including `.php`, `.bat`, `.env`, `.sql`, and others are locked from being displayed or hashed to prevent unauthorized code execution and credential leakage.
-> 4. **Folder Passwords — Must Be Hashed:** Folder protection passwords **MUST NOT** be stored as plaintext. Always use the output of `password_hash('your_password', PASSWORD_BCRYPT)`. Generate a hash with: `php -r "echo password_hash('your_password', PASSWORD_BCRYPT);"`.
+> 4. **Folder Passwords — Must Be Hashed:** Folder protection passwords **MUST NOT** be stored as plaintext. Always use the output of `password_hash('your_password', PASSWORD_BCRYPT)`. Generate a hash with:
+>    `php -r "echo password_hash('your_password', PASSWORD_BCRYPT);"`
 > 5. **CSP & Inline Event Handlers:** This script uses a nonce-based Content-Security-Policy. Inline `onclick=""` HTML attributes will be blocked by CSP — all event listeners must be registered inside a `<script nonce="...">` block.
 
 ---

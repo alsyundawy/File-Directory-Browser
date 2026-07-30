@@ -259,7 +259,7 @@ function makeNonce(): string
         return rtrim(strtr(base64_encode(random_bytes(16)), '+/', '-_'), '=');
     } catch (Throwable $e) {
         error_log('Failed to generate CSP nonce: ' . $e->getMessage());
-        return hash('sha256', uniqid('', true) . microtime(true)); // DevSkim: ignore DS173237
+        return hash('sha256', uniqid('', true) . microtime(true)); // DevSkim: ignore DS197836
     }
 }
 
@@ -912,7 +912,7 @@ function writeHashCache(string $cacheFile, array $hashData): void
     try {
         $rand = bin2hex(random_bytes(8));
     } catch (Throwable) {
-        $rand = uniqid('', true); // DevSkim: ignore DS173237
+        $rand = uniqid('', true); // DevSkim: ignore DS197836
     }
     $tmpFile = $cacheFile . '.' . $rand . '.tmp';
     $json = json_encode($hashData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);

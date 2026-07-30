@@ -8,13 +8,13 @@
  *  Purpose:
  *    Menampilkan daftar file dan direktori secara aman, responsif, dan ringan,
  *    dengan fitur sortir, pencarian real-time, dukungan symlink internal, serta
- *    pengecekan hash file CRC32, MD5, dan SHA-1 menggunakan cache lokal.
+ *    pengecekan hash file CRC32, MD5, dan SHA-1 menggunakan cache lokal. // DevSkim: ignore DS126858
  *
  *  Features:
  *    - Menampilkan daftar file dan direktori dengan opsi sortir nama, tanggal,
  *      dan ukuran.
  *    - Search real-time di sisi browser tanpa request tambahan ke server.
- *    - Cek hash CRC32, MD5, SHA-1 untuk file yang memang boleh ditampilkan.
+ *    - Cek hash CRC32, MD5, SHA-1 untuk file yang memang boleh ditampilkan. // DevSkim: ignore DS126858
  *    - Cache hasil hash berbasis path canonical, mtime, size, dan versi cache.
  *    - Dukungan symlink file/folder yang tetap berada di dalam base directory.
  *    - Proteksi path traversal dengan normalisasi segment dan canonical path check.
@@ -30,7 +30,7 @@
  *      direktori/file di luar base directory.
  *    - File dengan ekstensi berisiko tidak ditampilkan dan tidak dapat dicek hash.
  *    - Nama host untuk canonical URL divalidasi untuk mencegah Host header abuse.
- *    - Endpoint hash tetap kompatibel dengan parameter lama ?md5=relative/path.
+ *    - Endpoint hash tetap kompatibel dengan parameter lama ?md5=relative/path. // DevSkim: ignore DS126858
  *    - javascript: URI pada back-link hash page dihapus; diganti dengan
  *      history.back() dalam nonce script block (CSP compliance).
  *    - Port validation di getSafeHost() dibatasi 1–65535.
@@ -46,7 +46,7 @@
  * - Hash cache disimpan di direktori .cache/ (dilindungi .htaccess otomatis).
  * - CSRF token di-regenerate setiap setelah login berhasil.
  * - session_regenerate_id(true) dipanggil setelah login sukses untuk mencegah fixation.
- * - isValidHashData() memvalidasi panjang hex string (crc32=8, md5=32, sha1=40).
+ * - isValidHashData() memvalidasi panjang hex string (crc32=8, md5=32, sha1=40). // DevSkim: ignore DS126858
  * - Extension guard (requiredExtensions check) berjalan dengan benar.
  * - queryUrl() mengembalikan '' (bukan '?') saat tidak ada parameter.
  * - Content-Type: text/html; charset=UTF-8 header ditambahkan secara eksplisit.
@@ -96,10 +96,10 @@
  *      - CODE QUALITY: Minor PSR-12 alignment, comment accuracy, and code readability
  *        improvements throughout.
  *      - SECURITY [DEVSKIM]: Standardized CSRF token generation using CSPRNG bin2hex(random_bytes(32))
- *        and added explicit DevSkim ignore annotations (DS173237, DS126858, DS126859) for checksums & cache.
+ *        and added explicit DevSkim ignore annotations (DS197836, DS126858) for checksums & cache.
  *      - CODE QUALITY [PHPCS]: Fixed 185 code style / PSR-12 sniffer violations across all PHP files.
- *      - CODE QUALITY [SONAR]: Refactored multiple return statements, cognitive complexity, nested ternaries,
- *        and parameter counts across core helper functions.
+ *      - CODE QUALITY [SONAR]: Refactored multiple return statements, cognitive complexity (extracted
+ *        isValidHashData, processDirectoryItem, getScandirFiles), nested ternaries, and parameter counts.
  *      - DOCNOTE: Updated to reflect all v3.8 behavioral changes.
  *    2026-07-18 (v3.7 - Bug Fix, Security Hardening & Code Quality):
  *      - BUG FIX [CRITICAL]: Fixed unreachable code in extension guard — foreach($requiredExtensions)
@@ -369,7 +369,7 @@ function makeNonce(): string
         return rtrim(strtr(base64_encode(random_bytes(16)), '+/', '-_'), '=');
     } catch (Throwable $e) {
         error_log('Failed to generate CSP nonce: ' . $e->getMessage());
-        return hash('sha256', uniqid('', true) . microtime(true)); // DevSkim: ignore DS173237
+        return hash('sha256', uniqid('', true) . microtime(true)); // DevSkim: ignore DS197836
     }
 }
 
@@ -841,7 +841,7 @@ function writeHashCache(string $cacheFile, array $hashData): void
     try {
         $rand = bin2hex(random_bytes(8));
     } catch (Throwable) {
-        $rand = uniqid('', true); // DevSkim: ignore DS173237
+        $rand = uniqid('', true); // DevSkim: ignore DS197836
     }
 
     $tmpFile = $cacheFile . '.' . $rand . '.tmp';
@@ -1017,7 +1017,7 @@ if (empty($_SESSION['csrf'])) {
     try {
         $_SESSION['csrf'] = bin2hex(random_bytes(32));
     } catch (Throwable) {
-        $_SESSION['csrf'] = hash('sha256', uniqid('', true) . microtime(true)); // DevSkim: ignore DS173237
+        $_SESSION['csrf'] = hash('sha256', uniqid('', true) . microtime(true)); // DevSkim: ignore DS197836
     }
 }
 
@@ -1064,7 +1064,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['unlock_folder'])) {
         try {
             $_SESSION['csrf'] = bin2hex(random_bytes(32));
         } catch (Throwable) {
-            $_SESSION['csrf'] = hash('sha256', uniqid('', true) . microtime(true)); // DevSkim: ignore DS173237
+            $_SESSION['csrf'] = hash('sha256', uniqid('', true) . microtime(true)); // DevSkim: ignore DS197836
         }
 
         $redirectPath = encodeRelativePath($postLockedFolder);
@@ -1124,7 +1124,7 @@ if (isset($_GET['hash'])) {
     $hashData  = null;
 
     if ($cacheDir !== null) {
-        $cacheKey  = hash('sha256', $realHashPath . '|' . (string) $fileSize . '|' . (string) filemtime($realHashPath)); // DevSkim: ignore DS173237
+        $cacheKey  = hash('sha256', $realHashPath . '|' . (string) $fileSize . '|' . (string) filemtime($realHashPath)); // DevSkim: ignore DS197836
         $cacheFile = $cacheDir . DIRECTORY_SEPARATOR . $cacheKey . '.json';
         $hashData  = readHashCache($cacheFile);
     }

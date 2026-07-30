@@ -317,7 +317,7 @@ function makeNonce(): string
         return rtrim(strtr(base64_encode(random_bytes(16)), '+/', '-_'), '=');
     } catch (Throwable $e) {
         error_log('Failed to generate CSP nonce: ' . $e->getMessage());
-        return hash('sha256', uniqid('', true) . microtime(true)); // DevSkim: ignore DS173237
+        return hash('sha256', uniqid('', true) . microtime(true)); // DevSkim: ignore DS197836
     }
 }
 
@@ -749,7 +749,7 @@ function writeHashCache(string $cacheFile, array $hashData): void
     try {
         $rand = bin2hex(random_bytes(8));
     } catch (Throwable) {
-        $rand = uniqid('', true); // DevSkim: ignore DS173237
+        $rand = uniqid('', true); // DevSkim: ignore DS197836
     }
 
     $tmpFile = $cacheFile . '.' . $rand . '.tmp';
@@ -903,7 +903,7 @@ if (empty($_SESSION['csrf'])) {
     try {
         $_SESSION['csrf'] = bin2hex(random_bytes(32));
     } catch (Throwable) {
-        $_SESSION['csrf'] = hash('sha256', uniqid('', true) . microtime(true)); // DevSkim: ignore DS173237
+        $_SESSION['csrf'] = hash('sha256', uniqid('', true) . microtime(true)); // DevSkim: ignore DS197836
     }
 }
 
@@ -950,7 +950,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['unlock_folder'])) {
         try {
             $_SESSION['csrf'] = bin2hex(random_bytes(32));
         } catch (Throwable) {
-            $_SESSION['csrf'] = hash('sha256', uniqid('', true) . microtime(true)); // DevSkim: ignore DS173237
+            $_SESSION['csrf'] = hash('sha256', uniqid('', true) . microtime(true)); // DevSkim: ignore DS197836
         }
 
         $redirectPath = encodeRelativePath($postLockedFolder);
@@ -1010,7 +1010,7 @@ if (isset($_GET['hash'])) {
     $hashData  = null;
 
     if ($cacheDir !== null) {
-        $cacheKey  = hash('sha256', $realHashPath . '|' . (string) $fileSize . '|' . (string) filemtime($realHashPath)); // DevSkim: ignore DS173237
+        $cacheKey  = hash('sha256', $realHashPath . '|' . (string) $fileSize . '|' . (string) filemtime($realHashPath)); // DevSkim: ignore DS197836
         $cacheFile = $cacheDir . DIRECTORY_SEPARATOR . $cacheKey . '.json';
         $hashData  = readHashCache($cacheFile);
     }
