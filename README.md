@@ -114,6 +114,31 @@ $protectedFolders = [
 
 ## Riwayat Perubahan / Changelog
 
+### Version 3.8 (29-30 Juli 2026 / July 29-30, 2026) — Security Hardening, DevSkim, CSP Compliance & Code Quality
+
+- **🔒 SECURITY \[CSP & DevSkim\] — DevSkim Security Scan & CSP Compliance:**
+  - Standardized CSRF token generation using cryptographically secure `bin2hex(random_bytes(32))` instead of non-cryptographic time-based hashing (`uniqid` + `microtime`). Added explicit DevSkim ignore annotations (`DS173237`, `DS126858`, `DS126859`) for intentional file checksum features (`md5`, `sha1`), query string parameters, and filesystem cache keys.
+  - Removed `javascript:history.back()` URI from hash page back-link; replaced with a proper `<button id="backBtn">` handled via nonce script block to fully comply with strict CSP `script-src` policy.
+  - Removed inline `style="display:none"` from `#noResultRow` element; moved to CSS class `.hidden-row` to comply with strict CSP `style-src` policy.
+  - Added `nonce` attribute to `<noscript><style>` blocks on all pages for consistent CSP compliance across all rendering paths.
+  - Port number in `getSafeHost()` is now validated to be within valid TCP range (1–65535) to prevent malformed Host header injection via out-of-range port values.
+- **🐛 BUG FIXES:**
+  - Fixed column misalignment in table body — directory rows had 5 `<td>` elements (date-primary + date-secondary as separate columns) while file rows had 4. Unified date display so both dir and file rows use a single `<td class="date-cell">` containing both primary and secondary spans inside, matching thead column count of 4.
+  - `sanitizePath()` `preg_replace` with `/u` modifier now has explicit fallback if the regex fails due to invalid UTF-8 input, preventing silent null return.
+  - `ensureCacheDir()` now checks `mkdir()` return value and logs error on failure instead of silently continuing, preventing obscure cache-write errors downstream.
+  - `calculateHashes()` now calls `error_log()` when `fopen()` fails, improving production debuggability.
+  - `writeHashCache()` now verifies return value of `rename()` and logs on failure, ensuring temp file cleanup even on rename failure.
+- **✨ IMPROVEMENTS:**
+  - `humanizeFilesize()` now uses `number_format()` instead of `round()` to ensure consistent decimal display (e.g., "1.0 MB" not "1 MB").
+  - `humanizeFilesize()` caches `count($units)` before the loop to avoid repeated function calls on every iteration.
+  - `$unlockedSessions` reference at directory browsing section replaced with explicit null-safe array initialization to prevent potential reference warnings.
+  - Added `$_GET['sort'] ?? 'name'` and `$_GET['order'] ?? 'asc'` with explicit null coalescing before allowlist check for strict_types safety.
+- **🛠️ CODE QUALITY & LINTER COMPLIANCE (PHPCS & Sonar):**
+  - **PHP CodeSniffer (PHPCS)**: Executed `phpcbf` and manual formatting fixes across all PHP files to resolve all syntax, indentation, and spacing errors (0 PHPCS errors remaining).
+  - **Multiple Returns Reduction**: Refactored `getMediaIconClass()`, `createHashCacheDir()`, `readHashCache()`, and `listDirectory()` to reduce multiple return statements (max 1 per function).
+  - **Cognitive Complexity**: Extracted `isValidHashData()` and `processDirectoryItem()` helper functions, reducing cognitive complexity in `readHashCache()` (from 22 to 2) and `listDirectory()` (from 24 to 6).
+  - **Nested Ternaries & Parameter Limits**: Replaced nested ternary operations in `buildDirectoryEntry()` and sort button icons (`$nameIcon`, `$dateIcon`, `$sizeIcon`) with clear `if` statements. Reduced parameter count of `processDirectoryItem()` from 9 to 5.
+
 ### Version 3.7 (18 Juli 2026 / July 18, 2026) — Bug Fix, Security Hardening & Code Quality
 
 - **🐛 Bug Fix \[CRITICAL\] — Extension Guard:**

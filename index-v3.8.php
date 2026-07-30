@@ -95,6 +95,11 @@
  *        is kept defined but documented. Sort buttons use inline string 'active' directly.
  *      - CODE QUALITY: Minor PSR-12 alignment, comment accuracy, and code readability
  *        improvements throughout.
+ *      - SECURITY [DEVSKIM]: Standardized CSRF token generation using CSPRNG bin2hex(random_bytes(32))
+ *        and added explicit DevSkim ignore annotations (DS173237, DS126858, DS126859) for checksums & cache.
+ *      - CODE QUALITY [PHPCS]: Fixed 185 code style / PSR-12 sniffer violations across all PHP files.
+ *      - CODE QUALITY [SONAR]: Refactored multiple return statements, cognitive complexity, nested ternaries,
+ *        and parameter counts across core helper functions.
  *      - DOCNOTE: Updated to reflect all v3.8 behavioral changes.
  *    2026-07-18 (v3.7 - Bug Fix, Security Hardening & Code Quality):
  *      - BUG FIX [CRITICAL]: Fixed unreachable code in extension guard — foreach($requiredExtensions)
