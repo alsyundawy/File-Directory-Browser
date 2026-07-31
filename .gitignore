@@ -1,2 +1,5 @@
 .DS_Store
 .vscode/settings.json
+.cache/
+.php-cs-fixer.cache
+psalm.xml
