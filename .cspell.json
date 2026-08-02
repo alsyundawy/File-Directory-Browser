@@ -1,6 +1,1 @@
-{
-  "version": "0.2",
-  "language": "en,id",
-  "dictionaries": ["en_US", "softwareTerms", "php"],
-  "ignorePaths": ["README.md", "LICENSE", ".git/**", ".trunk/**"]
-}
+PLACEHOLDER_CSPELL
