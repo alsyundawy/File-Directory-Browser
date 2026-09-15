@@ -52,31 +52,51 @@ Bootstrap 5 and Font Awesome 6.
 
 - 🔒 **Keamanan Kelas Enterprise:**
   - Proteksi Path Traversal tingkat lanjut dengan normalisasi path segment dan verifikasi canonical path.
-  - Pembatasan Symlink eksternal secara default untuk mencegah akses di luar direktori utama.
-  - Header Keamanan Lengkap (Content-Security-Policy berbasis nonce, Referrer-Policy, Frame-Options, X-Content-Type-Options).
+  - Pembatasan Symlink eksternal secara default untuk mencegah akses di luar direktori utama, dilengkapi pemeriksaan symlink containment guard pada setiap file.
+  - Header Keamanan Lengkap (Content-Security-Policy berbasis nonce, Referrer-Policy, Frame-Options, X-Content-Type-Options, Permissions-Policy, dan X-Robots-Tag).
+  - Privasi & Anti-Indexing penuh dengan `X-Robots-Tag: noindex, nofollow, noarchive` dan `<meta name="robots" content="noindex,nofollow">`.
   - Cookie Sesi dengan konfigurasi `HttpOnly`, `SameSite=Strict`, dan `Secure` flag.
-  - Proteksi folder `.cache` otomatis menggunakan file `.htaccess` berisi larangan akses publik.
+  - Proteksi folder `.cache` otomatis menggunakan file `.htaccess` dan `index.html` kosong untuk webserver non-Apache (Nginx, Caddy, Lighttpd).
   - **Proteksi Folder dengan Password** menggunakan bcrypt (`password_hash` / `password_verify`) — password tidak pernah disimpan plaintext.
-  - CSRF protection pada form login folder, menggunakan token acak `random_bytes(32)`.
-- ⚡ **Sistem Caching Hash Pintar:** Menghitung hash file (CRC32, MD5, SHA-1) hanya saat diperlukan dan menyimpannya ke cache lokal secara aman berbasis ukuran file, waktu modifikasi (*mtime*), dan versi cache.
-- 🔍 **Pencarian Real-Time & Sortir Instan:** Cari nama file secara instan menggunakan JavaScript dan urutkan daftar file berdasarkan Nama, Tanggal, atau Ukuran secara cepat tanpa merusak rendering layout.
-- 🎨 **Antarmuka Premium & Aksesibilitas:** Desain Glassmorphic dengan dukungan Dark/Light Mode, ikon file berkode warna dinamis, layout responsif penuh, tombol Back-to-Top, dan **floating Home FAB button** yang ramah aksesibilitas keyboard (a11y).
-- ⚙️ **CSS Minified:** Seluruh CSS inline di-minify untuk performa loading halaman yang lebih cepat.
+  - CSRF protection pada form login folder, menggunakan token acak `bin2hex(random_bytes(32))` dengan regenerasi pasca-login.
+  - Pembatasan laju percobaan login (*rate-limiting*) dan proteksi *brute-force* dengan hitung mundur waktu kunci.
+- ⚡ **Sistem Caching Hash Pintar & Deterministic Sort:**
+  - Menghitung hash file (CRC32, MD5, SHA-1) hanya saat diperlukan dan menyimpannya ke cache lokal secara aman berbasis ukuran file, waktu modifikasi (*mtime*), dan versi cache.
+  - Pengurutan file deterministik dengan *natural sort tie-breaker* untuk stabilitas posisi daftar file saat tanggal atau ukuran identik.
+- 🔍 **Pencarian Real-Time & Pintasan Keyboard:**
+  - Cari nama file secara instan menggunakan JavaScript dan urutkan daftar file berdasarkan Nama, Tanggal, atau Ukuran secara cepat tanpa merusak rendering layout.
+  - Pintasan keyboard interaktif: tekan `/` atau `Ctrl+K` (`Cmd+K` di Mac) untuk langsung fokus ke pencarian, dan `Escape` untuk membersihkan serta melepas fokus.
+- 🎨 **Antarmuka Premium & Aksesibilitas Penuh (WCAG 2.2 AA/AAA):**
+  - Desain Glassmorphic dengan dukungan Dark/Light Mode, ikon file berkode warna dinamis, layout responsif penuh, tombol Back-to-Top, dan **floating Home FAB button**.
+  - Kepatuhan aksesibilitas tinggi: kontras warna footer lulus WCAG AAA (rasio > 7.5:1), header tabel `aria-sort`, breadcrumb `aria-current="page"`, indikator fokus keyboard `:focus-visible`, live region semantik `<output class="empty-state">`, serta dukungan `@media (prefers-reduced-motion: reduce)`.
+- 🛠️ **Kualitas Kode & Standar Tertinggi:**
+  - Seluruh CSS inline di-minify untuk performa loading halaman yang optimal.
+  - 100% kepatuhan standar PSR-12 (0 error pada `phpcs`), PHPStan Level Max (Level 9, 0 error), dan Psalm Level 3 (0 error).
 
 ### 🇬🇧 English
 
 - 🔒 **Enterprise-Grade Security:**
   - Advanced Path Traversal protection featuring path segment normalization and canonical path verification.
-  - Disabled external symlinks by default to prevent file access leaks outside the root directory.
-  - Robust Security Headers (Nonce-based Content-Security-Policy, Referrer-Policy, Frame-Options, X-Content-Type-Options).
+  - Disabled external symlinks by default, reinforced with symlink containment checks on every file entry.
+  - Robust Security Headers (Nonce-based Content-Security-Policy, Referrer-Policy, Frame-Options, X-Content-Type-Options, Permissions-Policy, and X-Robots-Tag).
+  - Search privacy & anti-indexing via `X-Robots-Tag: noindex, nofollow, noarchive` and `<meta name="robots" content="noindex,nofollow">`.
   - Session Cookies configured with `HttpOnly`, `SameSite=Strict`, and `Secure` attributes.
-  - Automatic creation of a protected `.cache` directory featuring auto-generated `.htaccess` public denial access.
+  - Automatic creation of protected `.cache` directory featuring both `.htaccess` and auto-generated `index.html` for non-Apache web servers (Nginx, Caddy, Lighttpd).
   - **Password-Protected Folders** secured with bcrypt (`password_hash` / `password_verify`) — passwords are never stored in plaintext.
-  - CSRF protection on the folder login form using `random_bytes(32)` tokens.
-- ⚡ **Smart Hash Caching System:** Computes file checksums (CRC32, MD5, SHA-1) on demand and securely caches results locally using file size, modified time (*mtime*), and cache-version checks.
-- 🔍 **Real-Time Search & Instant Sorting:** Instantly filter file listings via client-side JavaScript, and sort them seamlessly by Name, Date, or Size without breaking the visual grid.
-- 🎨 **Premium UI & Accessibility:** A stunning Glassmorphic layout with Dark/Light Mode toggle, color-coded file type icons, responsive viewport scaling, Back-to-Top button, and a **floating Home FAB button** — all keyboard-accessible (a11y).
-- ⚙️ **Minified Inline CSS:** All inline stylesheets are minified for faster page load performance.
+  - CSRF protection on the folder login form using `bin2hex(random_bytes(32))` tokens with post-login regeneration.
+  - Brute-force rate limiting and lockout protection on folder password forms with live countdown timers.
+- ⚡ **Smart Hash Caching & Deterministic Sorting:**
+  - Computes file checksums (CRC32, MD5, SHA-1) on demand and securely caches results locally using file size, modified time (*mtime*), and cache-version checks.
+  - Deterministic listing ordering with natural sort tie-breakers on matching dates or sizes.
+- 🔍 **Real-Time Search & Keyboard Navigation:**
+  - Instantly filter file listings via client-side JavaScript, and sort them seamlessly by Name, Date, or Size without breaking the visual grid.
+  - Interactive keyboard shortcuts: press `/` or `Ctrl+K` (`Cmd+K` on Mac) to jump to search, and `Escape` to clear and blur.
+- 🎨 **Premium UI & Full Accessibility (WCAG 2.2 AA/AAA):**
+  - A stunning Glassmorphic layout with Dark/Light Mode toggle, color-coded file type icons, responsive viewport scaling, Back-to-Top button, and a **floating Home FAB button**.
+  - High accessibility compliance: footer text passing WCAG AAA contrast (> 7.5:1 ratio), table column `aria-sort`, active breadcrumbs with `aria-current="page"`, visible keyboard focus rings (`:focus-visible`), semantic `<output class="empty-state">` status region, and `@media (prefers-reduced-motion: reduce)` support.
+- 🛠️ **Code Quality & Static Analysis:**
+  - All inline stylesheets are minified for faster page load performance.
+  - 100% compliance with PSR-12 (0 PHPCS errors), PHPStan Level Max (Level 9, 0 errors), and Psalm Level 3 (0 errors).
 
 ---
 
@@ -84,9 +104,9 @@ Bootstrap 5 and Font Awesome 6.
 
 | Layanan / Requirement | Versi Minimum / Minimum Version |
 | :--- | :--- |
-| **PHP** | `8.0` atau lebih baru / or newer |
+| **PHP** | `8.0` atau lebih baru / or newer (Didukung hingga PHP 8.4+ / Tested up to PHP 8.4+) |
 | **PHP Extensions** | `session`, `hash`, `json`, `pcre`, `spl` |
-| **Web Server** | Apache (direkomendasikan / recommended), Nginx, Lighttpd, dll |
+| **Web Server** | Apache (direkomendasikan / recommended), Nginx, Lighttpd, Caddy, dll |
 
 ---
 
@@ -123,6 +143,83 @@ $protectedFolders = [
 ---
 
 ## Riwayat Perubahan / Changelog
+
+### Version 3.9 (03 Agustus 2026 / August 3, 2026) — Full Security Audit, Accessibility WCAG 2.2, Strict PHPStan Max & Performance Polish
+
+- **🔒 SECURITY HARDENING (Keamanan Tingkat Lanjut):**
+  - **Symlink Escape Containment:**
+    - 🇮🇩 Menambahkan validasi *symlink containment check* pada iterasi pembacaan file di direktori browser, menjamin file symlink yang mengarah ke luar `$baseDir` tidak dapat di-enumerate jika `$allowExternalSymlinks` bernilai `false`.
+    - 🇬🇧 Added symlink containment check for file entries in the directory listing loop, guaranteeing symlinked files outside `$baseDir` cannot be enumerated when `$allowExternalSymlinks` is false.
+  - **Cache Protection Defense-in-Depth:**
+    - 🇮🇩 Pembuatan file `index.html` kosong secara otomatis di direktori `.cache/` berdampingan dengan `.htaccess` guna mencegah kebocoran *directory listing* pada web server non-Apache (Nginx, Caddy, Lighttpd, PHP CLI server).
+    - 🇬🇧 Added auto-generated `index.html` in `.cache/` directory alongside `.htaccess` to prevent directory listing on non-Apache web servers (Nginx, Caddy, Lighttpd, PHP CLI server).
+  - **Robots Anti-Indexing & Privacy:**
+    - 🇮🇩 Menambahkan header `X-Robots-Tag: noindex, nofollow, noarchive` pada `sendSecurityHeaders()` serta tag `<meta name="robots" content="noindex,nofollow">` pada halaman verifikasi password dan pengecekan hash untuk privasi indexing yang seragam.
+    - 🇬🇧 Added `X-Robots-Tag: noindex, nofollow, noarchive` in `sendSecurityHeaders()` and `<meta name="robots" content="noindex,nofollow">` on password & hash check pages for unified search privacy.
+
+- **🐛 BUG FIXES (Perbaikan Bug):**
+  - **PHP 8 Request URI Runtime Warning:**
+    - 🇮🇩 Menambahkan pengecekan tipe array pada nilai kembalian `parse_url()` sebelum mengakses `$parsedUrl['path']`, mencegah warning PHP 8 *"Trying to access array offset on value of type false"* saat menerima URI request yang malformed.
+    - 🇬🇧 Added array check on `parse_url()` return value before accessing `$parsedUrl['path']`, preventing PHP 8 "Trying to access array offset on false" warning on malformed request URIs.
+  - **CRLF Injection Prevention on Redirect:**
+    - 🇮🇩 Melakukan sanitasi karakter `\r` dan `\n` pada URL pengalihan di normalizer URL untuk mencegah potensi serangan *CRLF / HTTP response splitting*.
+    - 🇬🇧 Sanitized redirect URL against `\r` and `\n` in the URL normalizer redirector to prevent potential CRLF header injection.
+  - **Search Filter Zero Results DOM Visibility:**
+    - 🇮🇩 Memperbaiki bug DOM di mana baris pemberitahuan `#noResultRow` tidak muncul saat tidak ada file yang cocok akibat konflik style inline dengan class `.hidden-row`; beralih menggunakan `classList.toggle('hidden-row')`.
+    - 🇬🇧 Fixed critical DOM bug where `#noResultRow` remained invisible when 0 files matched due to inline style conflict with `.hidden-row` stylesheet rule; switched to `classList.toggle('hidden-row')`.
+  - **Search Filter Empty Folder State Handling:**
+    - 🇮🇩 Menangani status folder kosong (`#emptyRow`) secara mulus selama pemfilteran pencarian aktif agar tidak terjadi tumpang-tindih teks.
+    - 🇬🇧 Handled empty folder state (`#emptyRow`) gracefully during active search filtering.
+  - **Parent Directory Link Relative Path Encoding:**
+    - 🇮🇩 Menambahkan pemanggilan `encodeRelativePath()` yang sebelumnya terlewat pada link kembali ke direktori induk (`..`) di tabel daftar file.
+    - 🇬🇧 Added missing `encodeRelativePath()` to parent directory link in table body.
+
+- **♿ ACCESSIBILITY & UI/UX (WCAG 2.2 AA/AAA Compliance):**
+  - **Footer Text Contrast Ratio:**
+    - 🇮🇩 Meningkatkan kontras warna teks footer (`.footer` menjadi `#94a3b8`) hingga mencapai rasio kontras 7.5:1+, lulus uji kepatuhan WCAG AAA.
+    - 🇬🇧 Fixed contrast ratio on footer text (`.footer` color `#94a3b8`), achieving a contrast ratio of > 7.5:1 and passing WCAG AAA compliance.
+  - **Table Column Headers & `aria-sort`:**
+    - 🇮🇩 Menambahkan atribut `scope="col"` dan atribut dinamis `aria-sort` (`ascending`/`descending`/`none`) pada elemen header tabel `<th>` melalui fungsi helper khusus.
+    - 🇬🇧 Added table column `scope="col"` and dynamic `aria-sort` attributes (`ascending`/`descending`/`none`) to header `<th>` elements via a dedicated helper function.
+  - **Breadcrumb Navigation Location Indicator:**
+    - 🇮🇩 Menambahkan `aria-current="page"` pada segmen breadcrumb aktif untuk memudahkan navigasi pembaca layar (*screen reader*).
+    - 🇬🇧 Added `aria-current="page"` to the active breadcrumb path segment for improved screen reader navigation.
+  - **High-Visibility Keyboard Focus Outline:**
+    - 🇮🇩 Menambahkan indikator fokus `:focus-visible` dengan outline aksen indigo pada seluruh link, tombol, dan input form untuk kenyamanan navigasi keyboard.
+    - 🇬🇧 Added high-visibility `:focus-visible` outlines for links, buttons, and form inputs for seamless keyboard navigation.
+  - **Semantic Live Region `<output>`:**
+    - 🇮🇩 Mengganti `role="status"` pada elemen `<tr>` dengan elemen semantik native `<output class="empty-state">` untuk kompatibilitas assistive device yang lebih universal.
+    - 🇬🇧 Replaced `role="status"` on `<tr>` with semantic `<output class="empty-state">` for universal assistive device support.
+  - **Reduced Motion Preference Support:**
+    - 🇮🇩 Menambahkan aturan media query `@media (prefers-reduced-motion: reduce)` guna menghormati preferensi pengguna yang menonaktifkan atau meminimalkan animasi sistem.
+    - 🇬🇧 Added `@media (prefers-reduced-motion: reduce)` CSS rules to honor user motion preferences.
+  - **Keyboard Shortcuts for Quick Search:**
+    - 🇮🇩 Menambahkan pintasan keyboard `/` dan `Ctrl+K` (atau `Cmd+K` di macOS) untuk fokus instan ke kolom pencarian, serta `Escape` untuk mengosongkan dan melepas fokus input.
+    - 🇬🇧 Added `/` and `Ctrl+K` (`Cmd+K` on macOS) search shortcut to instantly focus the input, and `Escape` to clear search criteria and blur.
+  - **Hash Check Table & Back Navigation:**
+    - 🇮🇩 Merapikan styling elemen `.hash-table th` dan menambahkan fallback `window.location.href` pada tombol Back di halaman pengecekan hash jika riwayat peramban kosong.
+    - 🇬🇧 Styled `.hash-table th` elements and added fallback `window.location.href` to the back button on the hash verification page when browser history is empty.
+
+- **⚡ PERFORMANCE & DETERMINISTIC SORTING:**
+  - **Deterministic Natural Sort Tie-Breaker:**
+    - 🇮🇩 Menambahkan tie-breaker pengurutan natural nama file (`strnatcasecmp`) pada fungsi `usort()` ketika kriteria tanggal atau ukuran memiliki nilai yang identik, menjamin urutan daftar selalu konsisten.
+    - 🇬🇧 Added filename natural sort tie-breaker (`strnatcasecmp`) in `usort()` for deterministic ordering when date or size attributes match.
+
+- **🛠️ CODE QUALITY & STATIC ANALYSIS (PHPStan Max, Psalm, Sonar & PSR-12):**
+  - **SonarQube Cognitive Complexity Reduction:**
+    - 🇮🇩 Mengekstrak ekspresi *nested ternary* pada atribut `aria-sort` ke dalam fungsi pembantu `getSortAriaAttribute()`.
+    - 🇬🇧 Extracted nested ternary operations into dedicated `getSortAriaAttribute()` helper function.
+  - **PHPStan Level Max (Level 9) & Psalm Level 3 Clean Pass:**
+    - 🇮🇩 Meraih 100% kelulusan tanpa error dan tanpa warning pada PHPStan Level Max (Level 9) dan Psalm Level 3, menuntaskan semua isu mixed casts dan redundansi docblock type.
+    - 🇬🇧 Achieved 100% clean passes on PHPStan Level Max (Level 9) and Psalm Level 3 with 0 errors and 0 warnings, resolving all mixed casts and docblock type redundancies.
+  - **PSR-12 HTML/PHP Code Alignment:**
+    - 🇮🇩 Menyelaraskan seluruh indentasi blok kode PHP dalam konteks HTML sehingga mencapai 100% kepatuhan PSR-12 dengan 0 error dan 0 warning pada `phpcs --standard=PSR12`.
+    - 🇬🇧 Formatted and aligned all inline PHP code blocks within HTML context, achieving 100% PSR-12 compliance with 0 errors and 0 warnings via `phpcs --standard=PSR12`.
+  - **Centralized Version Constant:**
+    - 🇮🇩 Mendefinisikan konstanta versi terpusat `APP_VERSION = '3.9.0'` yang ditampilkan pada footer halaman.
+    - 🇬🇧 Defined centralized `APP_VERSION = '3.9.0'` constant displayed seamlessly in the application footer.
+
+---
 
 ### Version 3.8 (29-30 Juli 2026 / July 29-30, 2026) — Security Hardening, DevSkim, CSP Compliance & Code Quality
 
@@ -372,6 +469,9 @@ $protectedFolders = [
 > 4. **Password Folder — Wajib Hash:** Password untuk fitur proteksi folder **TIDAK BOLEH** disimpan dalam bentuk teks biasa (plaintext). Gunakan selalu hasil dari `password_hash('password_anda', PASSWORD_BCRYPT)`. Jalankan perintah berikut untuk generate hash:
 >    `php -r "echo password_hash('password_anda', PASSWORD_BCRYPT);"`
 > 5. **CSP & Inline Event Handler:** Script ini menggunakan Content-Security-Policy berbasis nonce. Inline `onclick=""` attribute pada HTML akan diblokir oleh CSP — semua event listener harus didaftarkan dalam `<script nonce="...">` block.
+> 6. **Proteksi Multi-Webserver:** Folder `.cache/` secara otomatis membuat file `.htaccess` dan `index.html` kosong untuk mencegah directory listing di Apache, Nginx, Caddy, Lighttpd, maupun PHP Built-in Server.
+> 7. **Pintasan Keyboard Pencarian:** Tekan `/` atau `Ctrl+K` (`Cmd+K` di macOS) di mana saja pada halaman untuk langsung fokus ke kotak pencarian, dan tekan `Escape` untuk menghapus teks pencarian dan melepas fokus input.
+> 8. **Kepatuhan Aksesibilitas (WCAG 2.2 AA/AAA):** Script memenuhi standar aksesibilitas terkini dengan kontras warna tinggi (WCAG AAA), navigasi keyboard dengan `:focus-visible`, penanda lokasi `aria-current="page"`, status sortir `aria-sort`, pembaca layar semantik `<output class="empty-state">`, serta dukungan `prefers-reduced-motion`.
 >
 > ### 🇬🇧 English (DocNote)
 >
@@ -381,6 +481,9 @@ $protectedFolders = [
 > 4. **Folder Passwords — Must Be Hashed:** Folder protection passwords **MUST NOT** be stored as plaintext. Always use the output of `password_hash('your_password', PASSWORD_BCRYPT)`. Generate a hash with:
 >    `php -r "echo password_hash('your_password', PASSWORD_BCRYPT);"`
 > 5. **CSP & Inline Event Handlers:** This script uses a nonce-based Content-Security-Policy. Inline `onclick=""` HTML attributes will be blocked by CSP — all event listeners must be registered inside a `<script nonce="...">` block.
+> 6. **Multi-Web Server Protection:** The `.cache/` folder automatically generates both `.htaccess` and an empty `index.html` file to prevent directory listing across Apache, Nginx, Caddy, Lighttpd, and the PHP Built-in Server.
+> 7. **Search Keyboard Shortcuts:** Press `/` or `Ctrl+K` (`Cmd+K` on macOS) anywhere on the page to immediately focus the search input, and press `Escape` to clear search criteria and blur the input field.
+> 8. **Accessibility Compliance (WCAG 2.2 AA/AAA):** The script adheres to modern accessibility standards featuring high contrast ratios (WCAG AAA), keyboard navigation with `:focus-visible`, breadcrumb `aria-current="page"`, table header `aria-sort`, semantic `<output class="empty-state">` screen reader live region, and `prefers-reduced-motion` support.
 
 ---
 
