@@ -93,6 +93,211 @@ Everything runs from a single `index.php` file, delivering instant client-side s
 
 ---
 
+## Installation Guide (Ubuntu / Debian)
+
+Below are complete, production-grade installation guides for **Ubuntu** (20.04 / 22.04 / 24.04 LTS) and **Debian** (11 / 12) using either **Apache** or **Nginx + PHP-FPM**.
+
+### Step 1: System Preparation & File Deployment
+
+Update your system package repositories and deploy the project files to your target web directory:
+
+```bash
+# Update package repositories
+sudo apt update && sudo apt upgrade -y
+
+# Install Git and unzip utilities
+sudo apt install -y git unzip curl
+
+# Create target web root directory
+sudo mkdir -p /var/www/file-browser
+
+# Clone repository into web directory
+sudo git clone https://github.com/alsyundawy/File-Directory-Browser.git /var/www/file-browser
+
+# Set ownership to the web server user (www-data)
+sudo chown -R www-data:www-data /var/www/file-browser
+sudo chmod -R 755 /var/www/file-browser
+
+# Grant write permissions for the .cache directory (required for hash caching)
+sudo chmod -R 775 /var/www/file-browser
+```
+
+---
+
+### Step 2 (Option A): Apache Web Server Setup
+
+If you are using the Apache HTTP Server:
+
+#### 1. Install Apache & PHP Modules
+
+```bash
+# Install Apache and PHP runtime with required extensions
+sudo apt install -y apache2 php php-cli libapache2-mod-php php-json php-mbstring
+
+# Enable required Apache modules (rewrite & headers)
+sudo a2enmod rewrite headers
+```
+
+#### 2. Configure Apache Virtual Host
+
+Create a new Virtual Host configuration:
+
+```bash
+sudo nano /etc/apache2/sites-available/file-browser.conf
+```
+
+Add the following configuration (replace `files.example.com` with your domain or server IP):
+
+```apache
+<VirtualHost *:80>
+    ServerName files.example.com
+    ServerAdmin webmaster@example.com
+    DocumentRoot /var/www/file-browser
+
+    <Directory /var/www/file-browser>
+        Options -Indexes +FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    # Block access to hidden files and directories (.env, .git, etc.)
+    <FilesMatch "^\.">
+        Require all denied
+    </FilesMatch>
+
+    # Logging
+    ErrorLog ${APACHE_LOG_DIR}/file-browser_error.log
+    CustomLog ${APACHE_LOG_DIR}/file-browser_access.log combined
+</VirtualHost>
+```
+
+#### 3. Enable Site & Restart Apache
+
+```bash
+# Enable the Virtual Host
+sudo a2ensite file-browser.conf
+
+# Optional: Disable the default Apache welcome page
+sudo a2dissite 000-default.conf
+
+# Verify Apache configuration syntax
+sudo apache2ctl configtest
+
+# Restart Apache service
+sudo systemctl restart apache2
+```
+
+---
+
+### Step 2 (Option B): Nginx + PHP-FPM Setup
+
+If you are using Nginx for lightweight, high-performance web delivery:
+
+#### 1. Install Nginx & PHP-FPM
+
+```bash
+# Install Nginx and PHP-FPM with essential extensions
+sudo apt install -y nginx php-fpm php-cli php-json php-mbstring
+```
+
+> [!NOTE]
+> Check your installed PHP-FPM socket version (e.g. `/run/php/php8.3-fpm.sock` or `/run/php/php8.2-fpm.sock`) by running: `ls -la /run/php/php*-fpm.sock`.
+
+#### 2. Configure Nginx Server Block
+
+Create a new Nginx server configuration:
+
+```bash
+sudo nano /etc/nginx/sites-available/file-browser
+```
+
+Add the following configuration (adjust `server_name` and the `fastcgi_pass` socket path to match your environment):
+
+```nginx
+server {
+    listen 80;
+    listen [::]:80;
+    server_name files.example.com;
+
+    root /var/www/file-browser;
+    index index.php;
+
+    charset utf-8;
+    client_max_body_size 100M;
+
+    # Primary routing: route through index.php if not a direct static file
+    location / {
+        try_files $uri $uri/ /index.php?$args;
+    }
+
+    # Pass PHP scripts to FastCGI server (PHP-FPM)
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+
+        # Adjust PHP-FPM socket path to match your installed PHP version:
+        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+        # For PHP 8.2 use: fastcgi_pass unix:/run/php/php8.2-fpm.sock;
+
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    # Deny direct access to .cache directory and hidden dotfiles
+    location ~ /\. {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+
+    # Deny direct access to sensitive file extensions
+    location ~* \.(env|git|sql|htaccess|htpasswd)$ {
+        deny all;
+        return 404;
+    }
+
+    # Logging
+    error_log  /var/log/nginx/file-browser_error.log;
+    access_log /var/log/nginx/file-browser_access.log;
+}
+```
+
+#### 3. Enable Site & Restart Nginx
+
+```bash
+# Create symbolic link to enable site
+sudo ln -s /etc/nginx/sites-available/file-browser /etc/nginx/sites-enabled/
+
+# Optional: Remove default Nginx welcome site
+sudo rm -f /etc/nginx/sites-enabled/default
+
+# Verify Nginx configuration syntax
+sudo nginx -t
+
+# Restart Nginx and PHP-FPM services
+sudo systemctl restart nginx
+sudo systemctl restart php*-fpm
+```
+
+---
+
+### Step 3: SSL / HTTPS Encryption with Let's Encrypt (Recommended)
+
+To protect session cookies and CSRF tokens in transit, secure your installation with free automated SSL certificates via Certbot:
+
+```bash
+# For Apache:
+sudo apt install -y certbot python3-certbot-apache
+sudo certbot --apache -d files.example.com
+
+# For Nginx:
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d files.example.com
+```
+
+Certbot will automatically install the certificate, configure HTTPS redirects, and establish an automated background renewal timer.
+
+---
+
 ## Configuration
 
 Open `index.php` in any text editor to adjust the configuration parameters located at the top of the file:
