@@ -1,23 +1,84 @@
-# File & Directory Browser
+<!-- markdownlint-disable-file MD033 MD041 -->
 
-[![Latest Version](https://img.shields.io/github/v/release/alsyundawy/File-Directory-Browser)](https://github.com/alsyundawy/File-Directory-Browser/releases)
-[![Maintenance Status](https://img.shields.io/maintenance/yes/9999)](https://github.com/alsyundawy/File-Directory-Browser/)
-[![License](https://img.shields.io/github/license/alsyundawy/File-Directory-Browser)](https://github.com/alsyundawy/File-Directory-Browser/blob/master/LICENSE)
-[![GitHub Issues](https://img.shields.io/github/issues/alsyundawy/File-Directory-Browser)](https://github.com/alsyundawy/File-Directory-Browser/issues)
-[![GitHub Pull Requests](https://img.shields.io/github/issues-pr/alsyundawy/File-Directory-Browser)](https://github.com/alsyundawy/File-Directory-Browser/pulls)
-[![Donate with PayPal](https://img.shields.io/badge/PayPal-donate-orange)](https://www.paypal.me/alsyundawy)
-[![Sponsor with GitHub](https://img.shields.io/badge/GitHub-sponsor-orange)](https://github.com/sponsors/alsyundawy)
-[![GitHub Stars](https://img.shields.io/github/stars/alsyundawy/File-Directory-Browser?style=social)](https://github.com/alsyundawy/File-Directory-Browser/stargazers)
-[![GitHub Forks](https://img.shields.io/github/forks/alsyundawy/File-Directory-Browser?style=social)](https://github.com/alsyundawy/File-Directory-Browser/network/members)
-[![GitHub Contributors](https://img.shields.io/github/contributors/alsyundawy/File-Directory-Browser?style=social)](https://github.com/alsyundawy/File-Directory-Browser/graphs/contributors)
+<p align="center">
+  <a href="https://github.com/alsyundawy/File-Directory-Browser">
+    <img src="assets/file-directory-browser-banner.jpg" alt="File & Directory Browser Banner" width="100%">
+  </a>
+</p>
+
+<h1 align="center">📁 File & Directory Browser</h1>
+
+<h3 align="center">Enterprise-Grade Single-File PHP Directory Indexer & Secure File Explorer</h3>
+
+<p align="center">
+  <a href="https://github.com/alsyundawy/File-Directory-Browser/releases/tag/v4.0.0"><img src="https://img.shields.io/badge/Release-v4.0.0-0284c7?style=for-the-badge&logo=github&logoColor=white" alt="Latest Release v4.0.0"></a>
+  <a href="https://www.php.net/"><img src="https://img.shields.io/badge/PHP-8.0%20%E2%80%94%208.4%2B-777bb4?style=for-the-badge&logo=php&logoColor=white" alt="PHP 8.0 to 8.4+"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="License: MIT"></a>
+  <a href="https://phpstan.org/"><img src="https://img.shields.io/badge/PHPStan-Level%209%20(Max)-brightgreen?style=for-the-badge&logo=phpstan&logoColor=white" alt="PHPStan Level 9"></a>
+  <a href="https://www.w3.org/WAI/standards-guidelines/wcag/"><img src="https://img.shields.io/badge/WCAG-2.2%20AAA-success?style=for-the-badge" alt="WCAG 2.2 AAA"></a>
+  <a href="#security-architecture"><img src="https://img.shields.io/badge/Security-CSP%20%7C%20HSTS%20%7C%20Bcrypt-red?style=for-the-badge&logo=securityscorecard&logoColor=white" alt="Security Hardened"></a>
+  <a href="https://github.com/squizlabs/PHP_CodeSniffer"><img src="https://img.shields.io/badge/PSR--12-Compliant-informational?style=for-the-badge" alt="PSR-12 Compliant"></a>
+</p>
+
+<p align="center">
+  A secure, lightweight, and modern single-file PHP directory indexer with glassmorphic UI, real-time search, atomic hash caching, bcrypt folder protection, strict Content Security Policy, and zero external dependencies.
+</p>
+
+<p align="center">
+  <a href="https://github.com/alsyundawy/File-Directory-Browser/releases/tag/v4.0.0">
+    <img src="https://img.shields.io/badge/🚀_Download_Latest_Release-v4.0.0-238636?style=for-the-badge&logo=github&logoColor=white" alt="Download Latest Release v4.0.0">
+  </a>
+  <a href="https://github.com/alsyundawy/File-Directory-Browser/releases">
+    <img src="https://img.shields.io/badge/📦_All_Releases-View-0284c7?style=for-the-badge&logo=github&logoColor=white" alt="All Releases">
+  </a>
+</p>
+
+> Designed and maintained by<br>
+> **[`HARRY DERTIN SUTISNA ALSYUNDAWY (@alsyundawy)`](https://github.com/alsyundawy)** —<br>
+> Modern drop-in replacement for Apache `mod_autoindex` and Nginx `autoindex` with zero database or package dependencies.
+>
+> 📦 **[`GitHub Releases (v4.0.0)`](https://github.com/alsyundawy/File-Directory-Browser/releases/tag/v4.0.0)** &nbsp;|&nbsp;
+> ⚡ **[`Quick Start`](#quick-start)** &nbsp;|&nbsp;
+> 🔒 **[`Security Architecture`](#security-architecture)** &nbsp;|&nbsp;
+> 📜 **[`Full Changelog`](#changelog)** &nbsp;|&nbsp;
+> 💖 **[`Support via PayPal`](https://www.paypal.me/alsyundawy)** &nbsp;|&nbsp;
+> 🇮🇩 **[`QRIS Donation`](#support--donation)**
+
+---
+
+## 🧭 Navigation
+
+- [About The Project](#about-the-project)
+- [User Interface](#user-interface)
+- [Key Features](#key-features)
+- [System Requirements](#system-requirements)
+- [Quick Start](#quick-start)
+- [Production Installation Guide (Ubuntu / Debian)](#production-installation-guide-ubuntu--debian)
+  - [Step 1: System Preparation & Deployment](#step-1-system-preparation--file-deployment)
+  - [Step 2 (Option A): Apache Web Server Setup](#step-2-option-a-apache-web-server-setup)
+  - [Step 2 (Option B): Nginx + PHP-FPM Setup](#step-2-option-b-nginx--php-fpm-setup)
+  - [Step 3: SSL / HTTPS Encryption with Let's Encrypt](#step-3-ssl--https-encryption-with-lets-encrypt-recommended)
+- [Configuration Reference](#configuration-reference)
+  - [General Settings](#general-settings)
+  - [Folder Password Protection](#folder-password-protection)
+- [Keyboard Shortcuts](#keyboard-shortcuts)
+- [Security Architecture](#security-architecture)
+- [Quality Assurance & Static Analysis](#quality-assurance--static-analysis)
+- [Changelog](#changelog)
+- [Documentation Notes](#documentation-notes)
+- [Project Directory Structure](#project-directory-structure)
+- [Contributing](#contributing)
+- [Maintainer & Contact](#maintainer--contact)
+- [Support & Donation](#support--donation)
+- [License](#license)
 
 ---
 
 ## About The Project
 
-**File & Directory Browser** is a security-hardened, lightweight, and responsive single-file PHP directory browser and indexer. Built as a modern, drop-in replacement for standard web server directory indexing (such as Apache `mod_autoindex` or Nginx `autoindex`), it provides a rich user experience without requiring database servers, heavy runtimes, or external package dependencies.
+**File & Directory Browser** is a security-hardened, high-performance, single-file PHP directory indexer and file explorer. Designed as a modern, elegant replacement for standard web server auto-indexing modules (such as Apache `mod_autoindex` or Nginx `autoindex`), it delivers a responsive web experience without requiring database servers, heavy backend frameworks, or NPM/Composer package dependencies.
 
-Everything runs from a single `index.php` file, delivering instant client-side search, deterministic multi-attribute sorting, on-demand file checksum computation (CRC32, MD5, SHA-1) backed by an atomic local caching system, bcrypt-authenticated folder password protection, enterprise-grade defense-in-depth security headers, and an elegant Glassmorphic UI adhering to WCAG 2.2 AAA accessibility standards.
+Everything runs self-contained from a single `index.php` file, featuring instant client-side search filtering, deterministic multi-attribute sorting, on-demand checksum generation (CRC32, MD5, SHA-1) backed by an atomic local caching system, bcrypt folder protection, enterprise-grade defense-in-depth security headers (CSP nonce, HSTS, anti-indexing), and a Glassmorphic UI fully compliant with WCAG 2.2 AAA accessibility standards.
 
 ---
 
@@ -35,47 +96,55 @@ Everything runs from a single `index.php` file, delivering instant client-side s
 
 ## Key Features
 
-- 🔒 **Enterprise-Grade Security & Privacy:**
-  - **Path Traversal Defense:** Rigorous path segment normalization and canonical filesystem path verification (`realpath`) preventing traversal exploits.
-  - **Symlink Containment Guards:** External symlinks outside the base directory are strictly disabled by default; every file entry is validated against symlink escape guards before enumeration.
-  - **Strict Security Headers:** Full suite of protective HTTP headers including dynamic nonce-based Content-Security-Policy (CSP), `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy`.
-  - **Search Privacy & Anti-Indexing:** Integrated `X-Robots-Tag: noindex, nofollow, noarchive` headers and `<meta name="robots" content="noindex,nofollow">` tags to prevent search engines from crawling or indexing file lists.
-  - **Hardened Session Cookies:** Session cookies configured with `HttpOnly`, `SameSite=Strict`, and `Secure` attributes with session fixation defenses (`session_regenerate_id(true)`).
-  - **Defense-in-Depth Cache Directory Protection:** Automatic `.cache/` folder hardening generating both `.htaccess` (Apache) and an empty `index.html` (Nginx, Caddy, Lighttpd) to prevent unauthorized cache indexing.
+- 🔒 **Enterprise-Grade Security & Defense-in-Depth:**
+  - **HTTP Strict Transport Security (HSTS):** Emits `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload` on HTTPS connections to mandate end-to-end encrypted transport.
+  - **Dynamic Content Security Policy (CSP):** Every request generates a cryptographically secure nonce (`bin2hex(random_bytes(16))`) enforcing strict `script-src` and `style-src` policies without `'unsafe-inline'`.
+  - **Path Traversal & Directory Escape Defense:** Strict path segment sanitization and canonical filesystem path verification (`realpath`) preventing traversal attacks.
+  - **Symlink Escape Containment:** External symlinks outside the base directory are strictly blocked by default; file entries are validated against containment boundaries before enumeration.
+  - **Comprehensive Security Headers:** Includes `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`, and `X-XSS-Protection: 0`.
+  - **Search Engine Anti-Indexing Privacy:** Emits `X-Robots-Tag: noindex, nofollow, noarchive` headers and `<meta name="robots" content="noindex,nofollow">` tags across all pages to block crawler indexing.
+  - **Hardened Session Security:** Session cookies configured with `HttpOnly`, `SameSite=Strict`, and `Secure` flags, complemented by session fixation defenses (`session_regenerate_id(true)`).
+  - **Defense-in-Depth Cache Directory Protection:** Automatic `.cache/` folder hardening generating both `.htaccess` (Apache) and an empty `index.html` (Nginx, Caddy, Lighttpd) to deny unauthorized cache browsing.
   - **Bcrypt Password-Protected Folders:** Restrict access to designated folders using secure bcrypt hashes (`password_hash` / `password_verify`) with zero plaintext storage.
-  - **CSRF Token Protection & Rate Limiting:** Password entry forms utilize cryptographically secure `bin2hex(random_bytes(32))` CSRF tokens with post-login regeneration, plus configurable brute-force lockout rules (`$loginMaxAttempts` and `$loginLockSeconds`) with live countdown timers.
-  - **Sensitive File Exclusion:** Critical system files (`.env`, `.php`, `.git`, `.htaccess`, `.sql`, etc.) are hidden from directory listings and checksum checks by default.
-- ⚡ **Smart Hash Caching & Deterministic Sorting:**
+  - **CSRF Token Protection & Brute-Force Rate Limiting:** Password forms implement cryptographically secure `bin2hex(random_bytes(32))` CSRF tokens with post-login regeneration, plus configurable brute-force lockout rules (`$loginMaxAttempts` and `$loginLockSeconds`) with live countdown timers.
+  - **Sensitive File Exclusion:** Critical system files (`.env`, `.php`, `.git`, `.htaccess`, `.sql`, etc.) are excluded from directory listings and checksum checks by default.
+
+- ⚡ **Atomic Hash Caching & Deterministic Sorting:**
   - **On-Demand File Checksums:** Computes CRC32, MD5, and SHA-1 checksums on demand with interactive one-click clipboard copying.
-  - **High-Performance Local Cache:** Checksum results are stored locally, keyed by file size, modification time (`mtime`), and schema version to eliminate redundant I/O operations.
-  - **Deterministic Natural Sorting:** Implements `strnatcasecmp` tie-breaker in directory sorting to guarantee consistent row order when timestamps or file sizes are identical.
-  - **Optimized Minified Assets:** All internal CSS stylesheets and JavaScript blocks are minified to deliver ultra-fast page rendering and small network footprints.
+  - **Atomic High-Performance Cache:** Checksum results are stored locally, keyed by file size, modification time (`mtime`), and schema version to eliminate redundant I/O operations. Cache writes use atomic temporary file creation and POSIX `rename(2)` syscalls.
+  - **Deterministic Natural Sorting:** Implements natural sort tie-breaking (`strnatcasecmp`) in directory sorting to guarantee consistent row order when timestamps or file sizes are identical.
+  - **Semantic Sort Controls:** Column headers utilize accessible `<button type="button" class="sort-btn">` controls with dynamic `aria-sort` indicators and nonced JavaScript navigation.
+
 - 🔍 **Real-Time Search & Keyboard Navigation:**
-  - **Instant Client-Side Filtering:** Fast, zero-reload browser filtering by filename using client-side JavaScript that preserves table layout integrity.
-  - **Interactive Keyboard Shortcuts:** Press `/` or `Ctrl+K` (`Cmd+K` on macOS) to instantly focus the search bar; press `Escape` to clear search filters and dismiss.
-  - **Interactive Breadcrumb Navigation:** Path breadcrumbs with dynamic folder icons (`fa-folder-open`) and clean URL structure (`/?berkas=folder/subfolder`).
-  - **Floating Home FAB & Back-to-Top:** Smooth floating buttons for instant return to root and smooth top-scrolling.
-- 🎨 **Modern Glassmorphic UI & Full Accessibility (WCAG 2.2 AA/AAA):**
-  - **Glassmorphic Aesthetic:** Sleek backdrop filters, dark/light theme switching, and dynamically color-coded file icons based on file type extensions.
-  - **High-Contrast Accessibility (WCAG AAA):** Footer text color achieves > 7.5:1 contrast ratio, fully passing WCAG AAA standards.
-  - **Accessible Table & Navigation:** Native `scope="col"` and dynamic `aria-sort` attributes on table headers, active breadcrumbs marked with `aria-current="page"`, high-visibility `:focus-visible` keyboard rings, and semantic `<output class="empty-state">` live regions for assistive technologies.
-  - **Motion Sensitivity Support:** Fully respects `@media (prefers-reduced-motion: reduce)` system preferences.
+  - **Instant Client-Side Filtering:** Zero-reload browser filtering by filename using client-side JavaScript that preserves table layout integrity.
+  - **Keyboard Quick Navigation:** Press `/` or `Ctrl+K` (`Cmd+K` on macOS) to instantly focus the search bar; press `Escape` to clear search filters and dismiss.
+  - **Interactive Breadcrumb Navigation:** Path breadcrumbs with dynamic folder icons (`fa-folder-open`), clean URL structure (`/?berkas=folder/subfolder`), and `aria-current="page"` semantics.
+  - **Floating Home FAB & Back-to-Top:** Smooth floating action buttons for instant return to root and top-scrolling.
+
+- 🎨 **Modern Glassmorphic UI & Full Accessibility (WCAG 2.2 AAA):**
+  - **Glassmorphic Aesthetic:** Ambient backdrop filters, dark/light theme switching, and dynamically color-coded file icons based on extension types.
+  - **Mobile Viewport & Safe-Area Polish:** Engineered with `viewport-fit=cover`, `min-height: 100svh` (with `100vh` fallback) to eliminate mobile URL bar jumping, and `env(safe-area-inset-bottom)` padding for bezel-less screens (iPhone, iPad, Android).
+  - **WCAG 2.2 AAA Contrast:** High-contrast text styling achieving > 7.5:1 contrast ratios across dark and light palettes.
+  - **Accessible Table & Semantic Landmarks:** Wrapped in `<section class="table-wrap" aria-label="File listing">` landmark, native `scope="col"` on headers, high-visibility `:focus-visible` keyboard rings, and semantic `<output class="empty-state">` live regions for screen readers.
+  - **Reduced Motion Support:** Fully respects `@media (prefers-reduced-motion: reduce)` system accessibility preferences.
+
 - 🛠️ **Code Quality & Static Analysis Compliance:**
-  - **100% PSR-12 Standard:** 0 errors on PHP CodeSniffer (`phpcs --standard=PSR12`).
-  - **PHPStan Level Max (Level 9):** 0 errors and 0 warnings with strict typing and complete generic PHPDoc annotations.
+  - **PHPStan Level Max (Level 9):** 0 errors and 0 warnings with strict typing and generic PHPDoc annotations.
   - **Psalm Level 3:** 0 errors and 0 warnings.
-  - **SonarQube Clean Architecture:** Minimized cognitive complexity, isolated single-return functions, and eliminated nested ternary operators.
+  - **100% PSR-12 Standard:** 0 errors on PHP CodeSniffer (`phpcs --standard=PSR12`).
+  - **Clean Architecture:** Minimized cognitive complexity, isolated single-return functions, and zero nested ternary operators.
 
 ---
 
-## Requirements
+## System Requirements
 
-| Requirement | Minimum Version | Notes |
-| :--- | :--- | :--- |
-| **PHP** | `8.0` or newer | Fully tested and compatible up to PHP 8.4+ (PHP 8.2+ recommended for production) |
-| **PHP Extensions** | `session`, `hash`, `json`, `pcre`, `spl` | Standard built-in PHP extensions |
-| **Web Server** | Any standard web server | Apache (recommended), Nginx, Lighttpd, Caddy, or PHP Built-in CLI Server |
-| **HTTPS / SSL** | Highly Recommended | Required for full security of session cookies and sensitive token transmission |
+| Requirement | Minimum Version | Recommended | Notes |
+| :--- | :--- | :--- | :--- |
+| **PHP** | `8.0` | `8.2` — `8.4+` | Full compatibility across PHP 8.0, 8.1, 8.2, 8.3, and 8.4+ |
+| **PHP Extensions** | `session`, `hash`, `json`, `pcre`, `spl` | Standard | All are standard built-in PHP core extensions |
+| **Web Server** | Any standard web server | Apache 2.4+ / Nginx 1.20+ | Works with Apache, Nginx, Caddy, Lighttpd, or PHP CLI built-in server |
+| **HTTPS / SSL** | Strongly Recommended | Let's Encrypt / TLS 1.3 | Required for secure cookies, HSTS enforcement, and CSRF protection |
+| **Database** | None | None | **Zero database required** — operates completely file-based |
 
 ---
 
@@ -88,14 +157,14 @@ Everything runs from a single `index.php` file, delivering instant client-side s
    ```
 
 2. **Deploy:** Copy `index.php` into the directory on your web server that you want to browse and share.
-3. **Configure:** Open `index.php` in a text editor to customize optional settings (such as page title, password-protected folders, or date formatting).
-4. **Browse:** Open your web browser and navigate to your folder URL (e.g. `http://localhost/files/` or `https://yourdomain.com/`).
+3. **Configure:** Open `index.php` in any text editor to customize optional settings (page title, password-protected folders, date format, etc.).
+4. **Browse:** Open your web browser and navigate to your directory URL (e.g. `http://localhost/files/` or `https://yourdomain.com/`).
 
 ---
 
-## Installation Guide (Ubuntu / Debian)
+## Production Installation Guide (Ubuntu / Debian)
 
-Below are complete, production-grade installation guides for **Ubuntu** (20.04 / 22.04 / 24.04 LTS) and **Debian** (11 / 12) using either **Apache** or **Nginx + PHP-FPM**.
+Below are production-ready installation guides for **Ubuntu** (20.04 / 22.04 / 24.04 LTS) and **Debian** (11 / 12) using either **Apache** or **Nginx + PHP-FPM**.
 
 ### Step 1: System Preparation & File Deployment
 
@@ -105,7 +174,7 @@ Update your system package repositories and deploy the project files to your tar
 # Update package repositories
 sudo apt update && sudo apt upgrade -y
 
-# Install Git and unzip utilities
+# Install Git and essential utilities
 sudo apt install -y git unzip curl
 
 # Create target web root directory
@@ -160,7 +229,7 @@ Add the following configuration (replace `files.example.com` with your domain or
         Require all granted
     </Directory>
 
-    # Block access to hidden files and directories (.env, .git, etc.)
+    # Block direct access to hidden files and directories (.env, .git, etc.)
     <FilesMatch "^\.">
         Require all denied
     </FilesMatch>
@@ -282,7 +351,7 @@ sudo systemctl restart php*-fpm
 
 ### Step 3: SSL / HTTPS Encryption with Let's Encrypt (Recommended)
 
-To protect session cookies and CSRF tokens in transit, secure your installation with free automated SSL certificates via Certbot:
+To protect session cookies, authentication tokens, and enable automatic HSTS enforcement in transit, secure your installation with automated SSL certificates via Certbot:
 
 ```bash
 # For Apache:
@@ -298,9 +367,11 @@ Certbot will automatically install the certificate, configure HTTPS redirects, a
 
 ---
 
-## Configuration
+## Configuration Reference
 
 Open `index.php` in any text editor to adjust the configuration parameters located at the top of the file:
+
+### General Settings
 
 ```php
 // =================== GENERAL SETTINGS ===================
@@ -324,10 +395,10 @@ $timezone                = 'Asia/Jakarta';        // Default application timezon
 
 ### Folder Password Protection
 
-To password-protect specific folders, generate a bcrypt hash first and map folder names to their hashes in `$protectedFolders`:
+To password-protect specific folders, generate a bcrypt hash and map folder names to their hashes in `$protectedFolders`:
 
 ```bash
-# Generate a bcrypt hash via your terminal:
+# Generate a secure bcrypt hash via your terminal:
 php -r "echo password_hash('your_secret_password', PASSWORD_BCRYPT);"
 ```
 
@@ -346,7 +417,7 @@ $loginLockSeconds        = 300;  // Lockout duration in seconds (5 minutes)
 ```
 
 > [!IMPORTANT]
-> **Never store plaintext passwords.** Always use a bcrypt hash produced by `password_hash($password, PASSWORD_BCRYPT)`.
+> **Never store plaintext passwords.** Always use a bcrypt hash generated via `password_hash($password, PASSWORD_BCRYPT)`.
 
 ---
 
@@ -355,11 +426,56 @@ $loginLockSeconds        = 300;  // Lockout duration in seconds (5 minutes)
 | Shortcut | Action | Description |
 | :--- | :--- | :--- |
 | `/` or `Ctrl + K` (`Cmd + K` on macOS) | **Focus Search** | Instantly highlights and focuses the search input bar from anywhere on the page |
-| `Escape` | **Clear & Dismiss** | Clears active search filters, restores the full listing, and removes focus |
+| `Escape` | **Clear & Dismiss** | Clears active search filters, restores the full listing, and removes input focus |
+
+---
+
+## Security Architecture
+
+The application enforces a defense-in-depth security model across every layer:
+
+1. **HTTP Strict Transport Security (HSTS):** Automatically detected and emitted when served over HTTPS with a 1-year max-age and preload directives.
+2. **Dynamic Nonce Content Security Policy (CSP):** Eliminates XSS vectors by enforcing strict cryptographic nonces for script and style elements.
+3. **Path Traversal Sanitization:** Uses `realpath()` boundary validation and recursive directory traversal checks to reject any directory escape attempts.
+4. **Symlink Containment Protection:** Validates that symbolic links resolve strictly within the permitted webroot boundary before enumeration.
+5. **Anti-Indexing Search Privacy:** Standardized `X-Robots-Tag` and meta robots tags prevent search engine indexing of private directory hierarchies.
+6. **Hardened Cookie Sessions:** Session cookies leverage `HttpOnly`, `SameSite=Strict`, and `Secure` attributes with session fixation defenses.
+7. **Timing-Attack Safe Authentication:** Password verification uses constant-time `password_verify()` against bcrypt hashes.
+8. **CSRF Token & Rate-Limiting:** Cryptographic `bin2hex(random_bytes(32))` CSRF tokens and brute-force attempt lockout timers.
+9. **Multi-Server Cache Protection:** Automatic `.htaccess` and `index.html` generation within `.cache/` blocks directory listings across Apache, Nginx, Caddy, and Lighttpd.
+
+---
+
+## Quality Assurance & Static Analysis
+
+The codebase adheres to rigorous static analysis standards with zero tolerated warnings:
+
+- **PHPStan Level Max (Level 9):** 0 errors, 0 warnings across all code paths.
+- **Psalm Level 3:** 0 errors, 0 warnings with strict type annotations.
+- **PHP_CodeSniffer (PSR-12):** Clean compliance with standard PSR-12 code style.
+- **SonarQube Cognitive Complexity:** Minimized function complexity with modular, single-return subfunctions.
 
 ---
 
 ## Changelog
+
+### Version 4.0.0 (September 27, 2026) — Security Hardening, Mobile SVH & Viewport Polish, WCAG 2.2 AAA & Semantic Architecture
+
+- **🔒 SECURITY HARDENING (HSTS & Strict Transport):**
+  - **HSTS Header Emission:** Integrated `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload` header in `sendSecurityHeaders()`, emitted automatically on HTTPS connections.
+  - **Strict Transport Detection:** Validates `$_SERVER['HTTPS']` and port `443` to ensure HSTS is enforced only over TLS.
+- **📱 MOBILE RESPONSIVENESS & SAFE-AREA SUPPORT:**
+  - **Viewport Fit Cover:** Added `viewport-fit=cover` across Directory Listing, Password Login, and Hash Check pages.
+  - **Modern Dynamic Viewport Units:** Added `min-height: 100svh` with `min-height: 100vh` fallback across all card containers and body wrapper, eliminating browser URL bar jumping on iOS Safari & mobile Chrome.
+  - **Safe-Area Inset Bottom Padding:** Added `padding-bottom: max(1.5rem, env(safe-area-inset-bottom))` to ensure seamless footer rendering above home indicators on bezel-less mobile screens (iPhone, iPad, Android).
+- **♿ ACCESSIBILITY & UI/UX (WCAG 2.2 AAA Compliance):**
+  - **Semantic Section Landmark:** Replaced `<div class="table-wrap">` with `<section class="table-wrap" aria-label="File listing">` without `tabindex`, eliminating IDE accessibility warnings while preserving smooth native overflow scrolling.
+  - **Semantic Sort Controls:** Migrated table header sort links from `<a>` tags to accessible `<button type="button" class="sort-btn" data-href="..." aria-label="...">` handled via nonce JavaScript navigation, preventing empty or dead link interactions.
+- **🛠️ CODE QUALITY & VERSION UPDATE:**
+  - **Centralized Version Constant:** Bumped `APP_VERSION` to `'4.0.0'`.
+  - **Updated Release Dates & Changelog:** Synchronized release documentation and header metadata.
+
+---
 
 ### Version 3.9 (August 3, 2026) — Full Security Audit, Accessibility WCAG 2.2, Strict PHPStan Max & Performance Polish
 
@@ -388,7 +504,7 @@ $loginLockSeconds        = 300;  // Lockout duration in seconds (5 minutes)
   - **SonarQube Cognitive Complexity Reduction:** Extracted nested ternary operations into dedicated `getSortAriaAttribute()` helper function.
   - **PHPStan Level Max (Level 9) & Psalm Level 3 Clean Pass:** Achieved 100% clean passes on PHPStan Level Max (Level 9) and Psalm Level 3 with 0 errors and 0 warnings, resolving all mixed casts and docblock type redundancies.
   - **PSR-12 HTML/PHP Code Alignment:** Formatted and aligned all inline PHP code blocks within HTML context, achieving 100% PSR-12 compliance with 0 errors and 0 warnings via `phpcs --standard=PSR12`.
-  - **Centralized Version Constant:** Defined centralized `APP_VERSION = '3.9.0'` constant displayed seamlessly in the application footer.
+  - **Centralized Version Constant:** Defined centralized `APP_VERSION = '3.9.0'` constant displayed in the application footer.
 
 ---
 
@@ -401,176 +517,87 @@ $loginLockSeconds        = 300;  // Lockout duration in seconds (5 minutes)
   - Added `nonce` attribute to `<noscript><style>` blocks on all pages for consistent CSP compliance across all rendering paths.
   - Port number in `getSafeHost()` is now validated to be within valid TCP range (1–65535) to prevent malformed Host header injection via out-of-range port values.
 - **🐛 BUG FIXES:**
-  - Fixed column misalignment in table body — directory rows had 5 `<td>` elements (date-primary and date-secondary as separate columns) while file rows had 4. Unified date display so both dir and file rows use a single `<td class="date-cell">` containing both primary and secondary spans inside, matching thead column count of 4.
+  - Fixed column misalignment in table body — directory rows had 5 `<td>` elements while file rows had 4. Unified date display so both dir and file rows use a single `<td class="date-cell">` containing both primary and secondary spans inside, matching thead column count of 4.
   - `sanitizePath()` `preg_replace` with `/u` modifier now has explicit fallback if the regex fails due to invalid UTF-8 input, preventing silent null return.
-  - `ensureCacheDir()` now checks `mkdir()` return value and logs error on failure instead of silently continuing, preventing obscure cache-write errors downstream.
+  - `ensureCacheDir()` now checks `mkdir()` return value and logs error on failure instead of silently continuing.
   - `calculateHashes()` now calls `error_log()` when `fopen()` fails, improving production debuggability.
   - `writeHashCache()` now verifies return value of `rename()` and logs on failure, ensuring temp file cleanup even on rename failure.
 - **✨ IMPROVEMENTS:**
   - `humanizeFilesize()` now uses `number_format()` instead of `round()` to ensure consistent decimal display (e.g., "1.0 MB" not "1 MB").
   - `humanizeFilesize()` caches `count($units)` before the loop to avoid repeated function calls on every iteration.
-  - `$unlockedSessions` reference at directory browsing section replaced with explicit null-safe array initialization to prevent potential reference warnings.
   - Added `$_GET['sort'] ?? 'name'` and `$_GET['order'] ?? 'asc'` with explicit null coalescing before allowlist check for strict_types safety.
 - **🛠️ CODE QUALITY & LINTER COMPLIANCE (PHPCS & Sonar):**
   - **PHP CodeSniffer (PHPCS):** Executed `phpcbf` and manual formatting fixes across all PHP files to resolve all syntax, indentation, and spacing errors (0 PHPCS errors remaining).
   - **Multiple Returns Reduction:** Refactored `getMediaIconClass()`, `createHashCacheDir()`, `readHashCache()`, and `listDirectory()` to reduce multiple return statements (max 1 per function).
-  - **Cognitive Complexity:** Extracted `isValidHashData()`, `processDirectoryItem()`, and `getScandirFiles()` helper functions, reducing cognitive complexity in `readHashCache()` (from 22 to 2) and `listDirectory()` (from 24 to 3).
-  - **Nested Ternaries & Parameter Limits:** Replaced nested ternary operations in `buildDirectoryEntry()` and sort button icons (`$nameIcon`, `$dateIcon`, `$sizeIcon`) with clear `if` statements. Reduced parameter count of `processDirectoryItem()` from 9 to 5.
+  - **Cognitive Complexity:** Extracted `isValidHashData()`, `processDirectoryItem()`, and `getScandirFiles()` helper functions.
 
 ---
 
 ### Version 3.7 (July 18, 2026) — Bug Fixes, Security Hardening & Code Quality
 
-- **🐛 Bug Fix [CRITICAL] — Extension Guard:**
-  - Fixed unreachable code in the extension guard — `foreach($requiredExtensions)` was placed inside the `version_compare()` if-block after `exit()`, causing all extension checks to never execute due to a misplaced closing brace.
-- **🔒 Bug Fix [SECURITY] — Reflected XSS on Password Page:**
-  - Added `e()` escaping on `$lockedFolder` in the `renderPasswordPage()` hidden input and all HTML attributes to prevent Reflected XSS via folder name.
-- **🔒 Bug Fix [SECURITY] — CSRF Token Fixation:**
-  - Added CSRF token regeneration after successful folder login to prevent CSRF token fixation and reuse attacks.
-- **🐛 Bug Fix — `queryUrl()` Empty String:**
-  - `queryUrl()` now returns `''` (empty string) instead of `'?'` when params are empty, preventing malformed URLs in sort links and breadcrumbs.
-- **🐛 Bug Fix — `calculateHashes()` fread Error:**
-  - `calculateHashes()` now correctly short-circuits on `fread() === false` before calling `hash_update()`, preventing hash computation on failed reads.
-- **🔒 Security — `isValidHashData()` Hex Length Validation:**
-  - `isValidHashData()` now strictly validates hex string length per algorithm (crc32=8, md5=32, sha1=40) to reject corrupt or spoofed cache entries.
-- **🔒 Security — `ensureCacheDir()` Path Sanitization:**
-  - `ensureCacheDir()` now sanitizes `$hashCacheVersion` before using it as a filesystem path component to prevent path injection.
-- **🔒 Security — Removed Error Suppression Operator:**
-  - Removed excessive `@` error suppression on file I/O functions (`file_put_contents`, `rename`, `unlink`, `chmod`, `fopen`) and replaced with explicit return-value checks.
-- **✨ Improvement — Session Cleanup on `getFirstLockedFolder()`:**
-  - Added cleanup of expired `unlocked_folders` session entries inside `getFirstLockedFolder()` to prevent unbounded session bloat over time.
-- **✨ Improvement — Explicit `Content-Type` Header:**
-  - Added an explicit `Content-Type: text/html; charset=UTF-8` header in `sendSecurityHeaders()` to remove reliance on browser charset sniffing.
-- **✨ Improvement — Integer Cast on Lock Timer:**
-  - Added explicit `(int)` cast on `$lockTimeRemaining` output in HTML for `strict_types` safety and clean integer rendering.
-- **🛠️ Code Quality:**
-  - Minor PSR-12 alignment and comment consistency improvements.
+- **🐛 Bug Fix [CRITICAL] — Extension Guard:** Fixed unreachable code in the extension guard where `foreach($requiredExtensions)` was placed after an `exit()` block.
+- **🔒 Bug Fix [SECURITY] — Reflected XSS on Password Page:** Added `e()` escaping on `$lockedFolder` in the `renderPasswordPage()` hidden input and all HTML attributes.
+- **🔒 Bug Fix [SECURITY] — CSRF Token Fixation:** Added CSRF token regeneration after successful folder login.
+- **🐛 Bug Fix — `queryUrl()` Empty String:** `queryUrl()` now returns `''` instead of `'?'` when params are empty.
+- **🐛 Bug Fix — `calculateHashes()` fread Error:** Correctly short-circuits on `fread() === false` before calling `hash_update()`.
+- **🔒 Security — `isValidHashData()` Hex Length Validation:** Strictly validates hex string length per algorithm (crc32=8, md5=32, sha1=40).
+- **🔒 Security — `ensureCacheDir()` Path Sanitization:** Sanitizes `$hashCacheVersion` before using it as a filesystem path component.
+- **🔒 Security — Removed Error Suppression Operator:** Removed excessive `@` error suppression on file I/O functions and replaced with explicit return-value checks.
 
 ---
 
-### Version 3.6 (July 18, 2026) — Security Hardening, CSP Compliance & Performance Optimization
+### Version 3.6 (July 18, 2026) — Security Hardening, CSP Compliance & Performance
 
-- **🔒 Security — CSP Inline Style Fix:**
-  - Fixed inline `style` attribute on the hash page container that violated the strict CSP policy.
-- **🔒 Security — CSP Script-src Compliance:**
-  - Removed inline `onsubmit` handler from the search form to achieve full `CSP script-src` compliance without `'unsafe-inline'`.
-- **🔒 Security — Session Fixation Prevention:**
-  - Added `session_regenerate_id(true)` after successful folder password verification to prevent session fixation.
-- **🔒 Security — `X-XSS-Protection: 0` Header:**
-  - Added `X-XSS-Protection: 0` header to disable the legacy browser XSS auditor and prevent false positives.
-- **⚡ Performance — `isHiddenName()` Static Cache:**
-  - Cached `strtolower` mapping in `isHiddenName()` using a `static` variable to avoid repeated `array_map` calls.
-- **⚡ Performance — `humanizeFilesize()` Loop Optimization:**
-  - Pre-computed unit count outside the loop boundary in `humanizeFilesize()`.
-- **⚡ Performance — `ob_end_flush()` Safety Check:**
-  - Improved the `ob_end_flush` shutdown handler with an `ob_get_level()` safety check.
-- **🐛 Bug Fix — Lock Time Display:**
-  - Used `intdiv()` for lock time display to prevent float output in user-facing messages.
+- **🔒 Security — CSP Hardening:** Fixed inline `style` attribute on hash page container; removed inline `onsubmit` handler from search form.
+- **🔒 Security — Session Fixation Prevention:** Added `session_regenerate_id(true)` after successful folder password verification.
+- **🔒 Security — `X-XSS-Protection: 0` Header:** Added `X-XSS-Protection: 0` header to disable legacy browser XSS auditor.
+- **⚡ Performance — Static Cache Optimization:** Cached `strtolower` mapping in `isHiddenName()` and pre-computed unit count in `humanizeFilesize()`.
 
 ---
 
-### Version 3.5 (July 14, 2026) — Premium Glassmorphic Dark Theme & Style Customization
+### Version 3.5 (July 14, 2026) — Premium Glassmorphic Dark Theme
 
-- **🎨 UI/UX — Premium Glassmorphic Dark Theme:**
-  - Implemented a modern Premium Glassmorphic Dark Theme featuring a beautiful fixed radial-gradient background.
-- **🎨 UI/UX — Custom Link & Icon Styling:**
-  - Custom-styled folder/file links and icons in both Light and Dark modes to match design specifications.
-- **🎨 UI/UX — Breadcrumb Open Folder Icon:**
-  - Integrated the open folder icon (`fa-folder-open`) in breadcrumb navigation while retaining standard closed folder icons in the file list view for visual consistency.
-- **📱 UI/UX — Mobile Responsiveness:**
-  - Optimized mobile media queries to scale down all text, paddings, and header elements for a highly compact and responsive layout across all device resolutions.
-- **🐛 Bug Fix — Infinite 301 Redirect Loop:**
-  - Resolved an infinite 301 redirect loop on nested folder parameters containing URL-encoded slashes (`%2F`) which previously caused the spinner loader to get stuck indefinitely.
+- **🎨 UI/UX — Premium Glassmorphic Dark Theme:** Implemented a modern Premium Glassmorphic Dark Theme featuring a fixed radial-gradient background.
+- **🎨 UI/UX — Custom Link & Icon Styling:** Custom-styled folder/file links and icons in both Light and Dark modes.
+- **🎨 UI/UX — Breadcrumb Open Folder Icon:** Integrated `fa-folder-open` in breadcrumb navigation.
+- **📱 UI/UX — Mobile Responsiveness:** Scaled down all text, paddings, and header elements for compact mobile viewports.
+- **🐛 Bug Fix — Infinite 301 Redirect Loop:** Resolved redirect loop on nested folder parameters containing URL-encoded slashes (`%2F`).
 
 ---
 
-### Version 3.4 (July 14, 2026) — URL Sanitizer, Rate-Limit, Quality Audits & UI Enhancement
+### Version 3.4 (July 14, 2026) — URL Sanitizer, Rate-Limit & UI Enhancement
 
-- **🔒 Security, Quality Audits & Rate-Limiting:**
-  - Added brute-force/rate-limit protection to folder passwords using login attempt limits (`$loginMaxAttempts = 5`) and temporary lockout timers (`$loginLockSeconds = 300`) with real-time countdown display.
-  - Merged nested conditional `if` statements to resolve code analyzer warnings.
-  - Relocated `ob_end_flush()` to a centralized `register_shutdown_function()` to ensure proper output buffer cleaning upon termination.
-- **⚡ Performance Optimization:**
-  - Minified all internal JavaScript blocks (Theme Switchers, Lock Countdown, Search and lists controller) to minimize payload size and improve execution speed.
-- **🎨 UI/UX & Dark Mode Contrast Fix:**
-  - Resolved blurry text styling in dark mode on the Hash Check page by setting `h2` heading color via `var(--text-primary)` and updating `.text-muted`/`.text-secondary` rules to use crisp high-contrast colors.
-- **🔗 Clean URL Routing:**
-  - Swapped directory browsing query parameter from `folder` to `berkas`.
-  - Stripped `index.php` path segment from URLs and implemented automatic redirects (HTTP 301) from `/index.php?folder=XXX` to `/?berkas=XXX` for cleaner SEO routing.
-  - Decoded `%2F` in query parameters back to slashes to display clean folder paths (e.g. `?berkas=folder1/subfolder1`), redirecting requests containing URL-encoded `%2F` to clean slash representations.
-- **✨ Modern Hash Check UI & Clipboard Support:**
-  - Modernized the Hash Check overlay with a narrower card layout, elegant shield badge styling, and CSP-compliant, one-click clipboard copying buttons with visual success feedback.
-- **Footer Encoding Fix:**
-  - Replaced copyright character symbols in the footer with robust HTML entities to prevent font encoding glitches.
-- **✨ Sorting Interactive Improvement:**
-  - Removed default highlighted/active selection state from sorting buttons. Active highlight only appears upon explicit query sort requests; otherwise, buttons display standard interactive hover effects.
-- **🛠️ Font Awesome Maintenance:**
-  - Consolidated and simplified Font Awesome mappings into a single static array in `getFileIconClass()`, removing six helper subfunctions to maximize readability and ease of maintenance.
+- **🔒 Security & Rate-Limiting:** Added brute-force protection to folder passwords using `$loginMaxAttempts = 5` and `$loginLockSeconds = 300` lockout timer.
+- **⚡ Performance Optimization:** Minified internal JavaScript blocks.
+- **🔗 Clean URL Routing:** Query parameter migrated from `folder` to `berkas`, automatic HTTP 301 redirects from `/index.php` to clean root, and decoded `/` slashes.
+- **✨ Modern Hash Check UI & Clipboard Support:** Added one-click clipboard copying buttons with visual success feedback.
 
 ---
 
-### Version 3.3 (July 13, 2026) — Strict CSP Compliance, Readability Overhaul & Clean Layout
+### Version 3.3 (July 13, 2026) — Strict CSP Compliance & Clean Layout
 
-- **🔒 Security & CSP Hardening:**
-  - Removed all remaining inline `style="..."` attributes on HTML tags (`#search-form-container`, `#fileTable`, and `<col>` elements) to achieve 100% CSP compliance without relying on `'unsafe-inline'`.
-  - Added dynamic CSP nonce value to the style tag within the `<noscript>` block.
-  - Rewrote JavaScript `.cssText` manipulation to use individual style property settings instead, avoiding CSP style-src blocks.
-- **🎨 UI/UX & Light Mode Contrast Enhancement:**
-  - Optimized Light Mode contrast to match clean design aesthetics — featuring high readability, crisp text, and zero eye-strain.
-  - Hardened text and color contrast in Dark Mode to ensure high legibility and eliminate blurry fonts.
-  - Aligned the Back-to-Top and Home FAB button coordinates on the bottom-right for clean, non-overlapping floating layouts.
-- **🐛 Bug Fix:**
-  - Fixed the back-to-listing button on the file hash verification page to function correctly under strict CSP headers.
+- **🔒 Security & CSP Hardening:** Removed remaining inline styles, added dynamic CSP nonce to `<noscript>` style blocks, and eliminated `'unsafe-inline'`.
+- **🎨 UI/UX:** Enhanced contrast for Light and Dark modes; aligned Back-to-Top and Home FAB button coordinates.
 
 ---
 
-### Version 3.2 (July 13, 2026) — Password Protection, Security Hardening & UI Enhancement
+### Version 3.2 (July 13, 2026) — Password Protection & UI Enhancement
 
-- **🔒 Security & Authentication:**
-  - Migrated folder protection from plaintext passwords to secure `password_hash(PASSWORD_BCRYPT)` and `password_verify()`.
-  - Replaced plaintext comparison (`===`) with `password_verify()` to eliminate timing attacks.
-  - Added case-insensitive folder protection checking across nested subfolders and files.
-- **🐛 Bug Fixes:**
-  - Fixed non-functional "Back to Listing" button on Hash Check page caused by CSP blocking inline `onclick` handlers by moving logic to a nonce-tagged script block.
-  - Fixed breadcrumb path accumulation using `array_values()` after `array_filter()` to prevent off-by-one errors on deeply nested folders.
-- **✨ Features & UI/UX:**
-  - Introduced floating **Home FAB button** (indigo house icon) positioned above the Back-to-Top button that appears after scrolling 300px, enabling instant one-click return to the root folder.
-  - Built a glassmorphic password prompt interface matching application themes.
-  - Added lock icons next to protected directories in the file table.
-  - Fixed dark mode table colors by properly defining the `--h` variable in dark settings.
-- **⚡ Performance:**
-  - Minified all inline CSS stylesheets with a regex-based minifier, saving ~16.7 KB (15.3% file size reduction).
-  - Moved `array_change_key_case($protectedFolders)` outside the listing loop, improving lookup efficiency from O(n) to O(1).
-- **♿ Accessibility & Code Quality:**
-  - Directed post-login redirects specifically to the freshly unlocked folder instead of the generic canonical URL.
-  - Added descriptive `aria-label` attributes on hash fingerprint links and `aria-hidden="true"` on decorative icons.
-  - Extracted `findOriginalFolderKey()` helper to reduce cognitive complexity in `getFirstLockedFolder()`.
+- **🔒 Security:** Migrated folder protection from plaintext passwords to `password_hash(PASSWORD_BCRYPT)` and constant-time `password_verify()`.
+- **✨ Features:** Introduced floating Home FAB button, glassmorphic password prompt interface, and folder lock indicators.
 
 ---
 
-### Version 3.1 (July 13, 2026) — Refactoring, Clean Code & Subresource Integrity
+### Version 3.1 (July 13, 2026) — Refactoring & Subresource Integrity
 
-- **Refactoring & Clean Code:**
-  - Reduced cognitive complexity across primary functions (`listDirectory`, `processDirectoryItem`, `readHashCache`) by decomposing into modular helper functions with single return paths.
-  - Reduced parameter counts on directory listing functions to comply with clean code standards.
-  - Converted inline HTML elements in README to standard Markdown for Markdownlint compliance.
-- **Security & Standards Hardening:**
-  - Integrated SHA-384 Subresource Integrity (SRI) hashes and `crossorigin` attributes across external dependencies (Bootstrap and Font Awesome CSS/JS).
-  - Centralized session cookie handling with explicit `secure` flags.
-- **Accessibility & CSS Enhancements:**
-  - Added standard `background-clip` property alongside `-webkit-background-clip` for cross-browser visual fidelity.
-  - Converted Back-to-Top buttons from non-standard tags to native `<button>` elements for proper keyboard accessibility.
+- **Refactoring:** Decomposed complex functions to comply with single-responsibility principles.
+- **Security:** Added SHA-384 Subresource Integrity (SRI) hashes across external Bootstrap and Font Awesome CDN assets.
 
 ---
 
-### Version 3.0 (July 8, 2026) — Aesthetic Overhaul & Performance Optimization
+### Version 3.0 (July 8, 2026) — Aesthetic Overhaul
 
-- **Performance Optimizations:**
-  - Optimized directory iteration by eliminating redundant `realpath` calls on symlinks.
-  - Introduced `isDisplayableFolder` validation to prevent hidden directories from leaking.
-- **Aesthetic Overhaul:**
-  - Completely redesigned UI with a modern Glassmorphic Dark Theme featuring ambient radial gradients, subtle micro-animations, and dynamically color-coded file icons.
-  - Implemented `<noscript>` fallback styling to gracefully handle loading screen transitions when JavaScript is disabled.
+- **Redesign:** Completely redesigned UI with a modern Glassmorphic Dark Theme featuring ambient radial gradients, subtle micro-animations, and dynamic file icons.
 
 ---
 
@@ -578,36 +605,87 @@ $loginLockSeconds        = 300;  // Lockout duration in seconds (5 minutes)
 
 > [!IMPORTANT]
 >
-> 1. **Cache Folder Permissions:** Ensure that the directory containing the script has write permissions so it can create the `.cache` folder automatically. If write permissions are unavailable, file checksum caching will be safely bypassed to guarantee uninterrupted runtime.
-> 2. **HTTPS/SSL Deployment:** It is strongly recommended to host this script under an SSL/HTTPS domain to guarantee encryption of CSRF session cookies and authentication tokens in transit.
-> 3. **Exclusion of Sensitive Files:** By default, critical file formats including `.php`, `.bat`, `.env`, `.sql`, `.htaccess`, and others are blocked from being listed, viewed, or hashed to prevent unauthorized code execution and credential leaks.
+> 1. **Cache Folder Permissions:** Ensure that the directory containing the script has write permissions so it can create the `.cache` folder automatically. If write permissions are unavailable, file checksum caching is safely bypassed to guarantee uninterrupted runtime.
+> 2. **HTTPS/SSL Deployment:** It is strongly recommended to host this script under an SSL/HTTPS domain to guarantee encryption of CSRF session cookies, authentication tokens, and automatic HSTS header activation.
+> 3. **Exclusion of Sensitive Files:** Critical file extensions including `.php`, `.env`, `.sql`, `.htaccess`, `.git`, and others are blocked by default from being listed, viewed, or hashed to prevent unauthorized code execution and credential leaks.
 > 4. **Folder Passwords (Must Be Hashed):** Folder protection passwords **must not** be stored in plaintext. Always use the output of `password_hash('your_password', PASSWORD_BCRYPT)`. Generate a hash with:
 >    `php -r "echo password_hash('your_password', PASSWORD_BCRYPT);"`
-> 5. **CSP & Inline Event Handlers:** This script enforces a strict nonce-based Content-Security-Policy. Inline `onclick=""` HTML attributes will be blocked by CSP — all event listeners must be registered inside `<script nonce="...">` blocks.
-> 6. **Multi-Webserver Cache Protection:** The `.cache/` folder automatically generates both `.htaccess` (Apache) and an empty `index.html` file to prevent unauthorized directory listing across Apache, Nginx, Caddy, Lighttpd, and the PHP CLI built-in server.
-> 7. **Search Keyboard Shortcuts:** Press `/` or `Ctrl+K` (`Cmd+K` on macOS) anywhere on the page to immediately focus the search input, and press `Escape` to clear search criteria and dismiss the input field.
-> 8. **Accessibility Compliance (WCAG 2.2 AA/AAA):** The interface strictly adheres to modern accessibility standards featuring high contrast ratios (WCAG AAA), keyboard navigation with `:focus-visible`, breadcrumb `aria-current="page"`, table column header `aria-sort`, semantic `<output class="empty-state">` screen reader live regions, and `prefers-reduced-motion` support.
+> 5. **CSP & Nonce Enforcement:** This script enforces a strict nonce-based Content-Security-Policy. Inline `onclick=""` or `<script>` elements without the dynamic nonce will be blocked by the browser.
+> 6. **Multi-Webserver Cache Protection:** The `.cache/` folder automatically generates both `.htaccess` (Apache) and an empty `index.html` file to prevent unauthorized directory listings across Apache, Nginx, Caddy, Lighttpd, and PHP CLI server.
+> 7. **Search Keyboard Shortcuts:** Press `/` or `Ctrl+K` (`Cmd+K` on macOS) anywhere on the page to focus the search input, and press `Escape` to clear search filters and dismiss the input field.
+> 8. **Accessibility Compliance (WCAG 2.2 AAA):** The interface strictly adheres to modern accessibility standards featuring high contrast ratios (> 7.5:1), keyboard navigation with `:focus-visible`, breadcrumb `aria-current="page"`, table column header `aria-sort`, semantic `<output class="empty-state">` live regions, and `prefers-reduced-motion` support.
 
 ---
 
-## Donation
+## Project Directory Structure
 
-You are free to use, modify, and distribute this script for personal and commercial purposes under the MIT License.
+```text
+File-Directory-Browser/
+├── LICENSE                    # MIT License
+├── README.md                  # Project overview, installation, and documentation
+├── assets/                    # Repository banners, media, and visual assets
+│   ├── alsyundawy-banner.png  # Alsyundawy IT Solution maintainer banner
+│   └── file-directory-browser-banner.jpg # Production flyer & banner
+└── index.php                  # Complete single-file directory indexer & file browser
+```
 
-If you find this project helpful and would like to support ongoing maintenance and new features, please consider donating:
+---
 
-- **PayPal:** [paypal.me/alsyundawy](https://www.paypal.me/alsyundawy)
-- **GitHub Sponsors:** [github.com/sponsors/alsyundawy](https://github.com/sponsors/alsyundawy)
+## Contributing
 
-For Indonesian local bank transfers or e-wallet payments via QRIS, you can scan the barcode below:
+Contributions, issues, and feature requests are welcome:
 
-![QRIS Donation](https://github.com/user-attachments/assets/a0126f28-6dde-43da-ba14-d7c9a27de0df)
+1. Fork the repository (`https://github.com/alsyundawy/File-Directory-Browser/fork`).
+2. Create your feature branch (`git checkout -b feature/amazing-feature`).
+3. Maintain strict PHP 8.0+ compatibility and zero PHPStan / Psalm / PSR-12 warnings.
+4. Commit your changes (`git commit -m 'feat: add amazing feature'`).
+5. Push to the branch (`git push origin feature/amazing-feature`).
+6. Open a Pull Request with a clear summary of your changes.
+
+---
+
+## Maintainer & Contact
+
+<p align="center">
+  <a href="https://www.alsyundawy.com">
+    <img src="assets/alsyundawy-banner.png" alt="Alsyundawy IT Solution Banner" width="100%">
+  </a>
+</p>
+
+### Harry Dertin Sutisna Alsyundawy (@alsyundawy)
+
+- 🌐 Website: [https://www.alsyundawy.com](https://www.alsyundawy.com)
+- 💻 GitHub: [@alsyundawy](https://github.com/alsyundawy)
+- 🐦 Twitter / X: [@alsyundawy](https://x.com/alsyundawy)
+- 🏢 Organization: [WWW.ALSYUNDAWY.NET](https://www.alsyundawy.net)
+- 📍 Location: DKI Jakarta, Indonesia
+
+---
+
+## Support & Donation
+
+If these scripts are helpful for your setup, you can support development here:
+
+- **PayPal**: [`https://www.paypal.me/alsyundawy`](https://www.paypal.me/alsyundawy)
+
+### 🇮🇩 QRIS (Quick Response Code Indonesian Standard)
+
+Scan the QRIS barcode below using any Indonesian mobile banking app (BCA, Mandiri, BRI, BNI, BSI, CIMB Niaga, Permata) or e-wallet (GoPay, OVO, DANA, LinkAja, ShopeePay):
+
+![QRIS Donation Barcode - ALSYUNDAWY](https://github.com/user-attachments/assets/a0126f28-6dde-43da-ba14-d7c9a27de0df)
+
+- **Merchant / Account Name**: **ALSYUNDAWY IT SOLUTION**
+- **NMID**: **`ID1020021153676`**
+- **Direct Barcode Asset Link**: [`https://github.com/user-attachments/assets/a0126f28-6dde-43da-ba14-d7c9a27de0df`](https://github.com/user-attachments/assets/a0126f28-6dde-43da-ba14-d7c9a27de0df)
+- **WhatsApp Confirmation**: [`+62 856-8515-212`](https://wa.me/628568515212)
 
 ---
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE) — Copyright © 2026 **HARRY DS ALSYUNDAWY** — ALSYUNDAWY IT SOLUTION.
+This project is licensed under the **MIT License** — see the [`LICENSE`](LICENSE) file for details.
+
+Copyright (c) 2026 **Harry Dertin Sutisna Alsyundawy (alsyundawy)**.
 
 > **Note:** Please retain attribution credit to the original author (**HARRY DS ALSYUNDAWY — ALSYUNDAWY IT SOLUTION**) if you use or distribute this script. Attribution is appreciated though not legally mandated under the MIT License.
 

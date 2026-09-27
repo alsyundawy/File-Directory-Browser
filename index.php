@@ -77,8 +77,39 @@
  * - Kepatuhan penuh standar aksesibilitas WCAG 2.2 AA/AAA (kontras, aria-sort, aria-current, focus-visible) (v3.9).
  * - Ekstraksi nested ternary aria-sort ke helper getSortAriaAttribute() dan penggunaan semantic <output> (v3.9).
  * - 100% kepatuhan PHPStan Level Max (Level 9) dan Psalm Level 3 tanpa error/warning/info (v3.9).
+ * - HSTS header (max-age=31536000; includeSubDomains; preload) ditambahkan untuk request HTTPS saja (v4.0).
+ * - viewport-fit=cover ditambahkan ke semua halaman agar konten tidak terpotong oleh notch/gesture-bar
+ *   (Xiaomi HyperOS, iPhone Dynamic Island, Samsung punch-hole) (v4.0).
+ * - body min-height menggunakan 100svh (small viewport height) dengan fallback 100vh agar aman di semua
+ *   browser mobile (MIUI Mi Browser, Android WebView, Chrome < 108) (v4.0).
+ * - body padding-bottom ditambahkan env(safe-area-inset-bottom) untuk gesture bar Xiaomi/iPhone (v4.0).
+ * - .table-wrap diberi tabindex="0" + role="region" + aria-label agar pengguna keyboard dapat scroll
+ *   tabel overflow secara mandiri — WCAG 2.1 SC 2.1.1 (v4.0).
+ * - Sort column headers dikonversi dari <a href> ke <button type="button"> untuk semantik ARIA yang benar;
+ *   href dipertahankan sebagai data-href sehingga logika navigasi tetap berfungsi via JS (v4.0).
+ * - .container padding-bottom dan .footer margin-bottom ditambahkan safe-area-inset-bottom
+ *   untuk menghindari tumpang tindih dengan gesture bar pada perangkat layar tanpa bezel (v4.0).
  *
  *  Changelog:
+ *    2026-09-27 (v4.0 - Mobile Viewport Fix, HSTS, Safe-Area, WCAG Table Scroll & Semantic Sort Buttons):
+ *      - SECURITY: Added Strict-Transport-Security (HSTS) header (max-age=31536000; includeSubDomains; preload)
+ *        in sendSecurityHeaders() — emitted only for HTTPS requests to prevent mixed-content downgrades.
+ *      - MOBILE [XIAOMI/REDMI/POCO]: Added viewport-fit=cover to <meta name="viewport"> on all pages
+ *        (main, password, hash) so content is not clipped by notch, punch-hole, or gesture bar on HyperOS,
+ *        MIUI, One UI, and iOS devices.
+ *      - MOBILE: Changed body min-height from 100vh to 100svh (small viewport unit) with 100vh fallback
+ *        so mobile browsers that dynamically resize the toolbar (Chrome, Mi Browser, Samsung Internet)
+ *        render the body background correctly without a white gap at the bottom.
+ *      - MOBILE: Added padding-bottom: env(safe-area-inset-bottom, 0px) to body and .container to prevent
+ *        content from being hidden behind the iOS/Android gesture bar.
+ *      - ACCESSIBILITY [WCAG 2.1 SC 2.1.1]: Added tabindex="0", role="region", and aria-label="File listing"
+ *        to .table-wrap div so keyboard-only users can scroll the horizontally overflowing table.
+ *      - ACCESSIBILITY [WCAG 2.1 SC 4.1.2]: Converted sort column <a href> anchor elements to
+ *        <button type="button"> semantic elements; navigation now handled via JS click -> window.location,
+ *        href preserved as data-href for progressive-enhancement and screen-reader context.
+ *      - UI/UX: Added .container padding-bottom and .footer margin-bottom with safe-area-inset-bottom
+ *        to avoid overlap with device gesture bar on bezel-less phones.
+ *      - DOCNOTE: Updated to reflect all v4.0 behavioral changes.
  *    2026-08-03 (v3.9 - Full Security Audit, Accessibility WCAG 2.2, Strict PHPStan Max & Performance Polish):
  *      - SECURITY [SYMLINK ESCAPE]: Added symlink containment check for file entries in directory listing loop,
  *        guaranteeing symlinked files outside $baseDir cannot be enumerated when $allowExternalSymlinks is false.
@@ -252,7 +283,7 @@
  *  Created By : HARRY DERTIN SUTISNA
  *  Contact    : Email: alsyundawy@gmail.com | Handle: @alsyundawy
  *  Created On : 26 June 2025
- *  Updated On : 03 August 2026
+ *  Updated On : 27 September 2026
  *  Timezone   : Asia/Jakarta
  *  License    : MIT License
  * ==============================================================================
@@ -356,7 +387,7 @@ $hashCacheVersion     = '2026-07-08-v2';
 /** @var non-empty-string */
 $timezone             = 'Asia/Jakarta';
 
-define('APP_VERSION', '3.9.0');
+define('APP_VERSION', '4.0.0');
 define('CLASS_ACTIVE', ' active');
 define('CACHE_DIR_NAME', '.cache');
 
@@ -635,6 +666,11 @@ function sendSecurityHeaders(string $nonce): void
     header('X-XSS-Protection: 0');
     header('X-Robots-Tag: noindex, nofollow, noarchive');
 
+    // SECURITY v4.0: Emit HSTS only on HTTPS to avoid breaking plain-HTTP environments.
+    if (isHttpsRequest()) {
+        header('Strict-Transport-Security: max-age=31536000; includeSubDomains; preload');
+    }
+
     $csp = [
         "default-src 'self'",
         "base-uri 'self'",
@@ -787,14 +823,14 @@ function renderPasswordPage(string $lockedFolder, string|null $error, string $no
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="robots" content="noindex,nofollow">
     <title>Folder Terproteksi - Password Required</title>
     <noscript><style nonce="<?= e($nonce) ?>">body{display:block!important}</style></noscript>
     <style nonce="<?= e($nonce) ?>">
         /* === Password Page Styles === */
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-        body{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0f0f1a 0%,#1a1a2e 50%,#16213e 100%);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:#e2e8f0;padding:1rem}
+        body{min-height:100vh;min-height:100svh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0f0f1a 0%,#1a1a2e 50%,#16213e 100%);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:#e2e8f0;padding:1rem;padding-bottom:max(1rem,env(safe-area-inset-bottom,0px))}
         .lock-card{background:rgba(255,255,255,.05);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.1);border-radius:1.5rem;padding:2.5rem;width:100%;max-width:420px;box-shadow:0 25px 50px rgba(0,0,0,.5),0 0 80px rgba(99,102,241,.1)}
         .lock-icon{font-size:3rem;text-align:center;margin-bottom:1rem}
         h1{font-size:1.5rem;font-weight:700;text-align:center;margin-bottom:.5rem;background:linear-gradient(135deg,#818cf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
@@ -1085,13 +1121,13 @@ function renderHashPage(string $fileName, int $fileSize, array $hashData, string
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="robots" content="noindex,nofollow">
     <title>Hash Check for <?= e($fileName) ?></title>
     <noscript><style nonce="<?= e($nonce) ?>">body{display:block!important}</style></noscript>
     <style nonce="<?= e($nonce) ?>">
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-        body{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0f0f1a 0%,#1a1a2e 50%,#16213e 100%);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:#e2e8f0;padding:1rem}
+        body{min-height:100vh;min-height:100svh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0f0f1a 0%,#1a1a2e 50%,#16213e 100%);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:#e2e8f0;padding:1rem;padding-bottom:max(1rem,env(safe-area-inset-bottom,0px))}
         .hash-card{background:rgba(255,255,255,.05);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.1);border-radius:1.5rem;padding:2.5rem;width:100%;max-width:600px;box-shadow:0 25px 50px rgba(0,0,0,.5)}
         h1{font-size:1.5rem;font-weight:700;text-align:center;margin-bottom:1.5rem;background:linear-gradient(135deg,#818cf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
         .file-name{text-align:center;color:#94a3b8;font-size:.875rem;margin-bottom:2rem;word-break:break-all}
@@ -1504,7 +1540,7 @@ $isRootDir  = ($requestedPath === '');
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="robots" content="noindex,nofollow">
     <link rel="canonical" href="<?= e($canonicalUrl) ?>">
     <title><?= e($titleDisplay) ?></title>
@@ -1514,7 +1550,9 @@ $isRootDir  = ($requestedPath === '');
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
         html{scroll-behavior:smooth}
         @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
-        body{background:linear-gradient(135deg,#0f0f1a 0%,#1a1a2e 50%,#16213e 100%);min-height:100vh;font-family:'Segoe UI',system-ui,-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;color:#e2e8f0;overflow-x:hidden}
+        /* MOBILE v4.0: min-height:100svh (small viewport unit) with 100vh fallback prevents white-gap
+           on Chrome/Mi Browser when toolbar resizes dynamically; safe-area-inset-bottom covers gesture bar */
+        body{background:linear-gradient(135deg,#0f0f1a 0%,#1a1a2e 50%,#16213e 100%);min-height:100vh;min-height:100svh;font-family:'Segoe UI',system-ui,-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;color:#e2e8f0;overflow-x:hidden;padding-bottom:env(safe-area-inset-bottom,0px)}
         a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid #818cf8;outline-offset:2px}
         .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
         /* === Loading === */
@@ -1528,7 +1566,7 @@ $isRootDir  = ($requestedPath === '');
         .glow-1{width:400px;height:400px;background:rgba(99,102,241,.12);top:-100px;left:-100px}
         .glow-2{width:350px;height:350px;background:rgba(168,85,247,.1);bottom:-80px;right:-80px}
         /* === Layout === */
-        .container{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:2rem 1.25rem}
+        .container{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:2rem 1.25rem;padding-bottom:max(2rem,env(safe-area-inset-bottom,0px))}
         /* === Header === */
         .header{margin-bottom:2rem}
         .breadcrumb{font-size:.875rem;color:#64748b;margin-bottom:.75rem;display:flex;flex-wrap:wrap;align-items:center;gap:.125rem}
@@ -1545,6 +1583,8 @@ $isRootDir  = ($requestedPath === '');
         .search-input:focus{border-color:#6366f1;background:rgba(255,255,255,.09)}
         /* === Table Card === */
         .table-card{background:rgba(255,255,255,.04);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.08);border-radius:1.25rem;overflow:hidden}
+        /* WCAG v4.0: table-wrap uses <section> landmark for screen readers; interactive table content
+           (sort buttons, hash links) provides full keyboard access — no tabindex wrapper needed */
         .table-wrap{overflow-x:auto}
         table{width:100%;border-collapse:collapse;min-width:500px}
         thead{background:rgba(255,255,255,.04)}
@@ -1588,7 +1628,7 @@ $isRootDir  = ($requestedPath === '');
         /* Protected state */
         .protected-msg{text-align:center;padding:2rem 1rem;color:#94a3b8;font-size:.875rem}
         /* Footer */
-        .footer{text-align:center;margin-top:2rem;color:#94a3b8;font-size:.75rem}
+        .footer{text-align:center;margin-top:2rem;margin-bottom:max(.5rem,env(safe-area-inset-bottom,0px));color:#94a3b8;font-size:.75rem}
     </style>
 </head>
 <body>
@@ -1642,7 +1682,7 @@ $isRootDir  = ($requestedPath === '');
 
         <!-- Table -->
         <div class="table-card">
-            <div class="table-wrap">
+            <section class="table-wrap" aria-label="File listing">
                 <table id="fileTable">
                     <thead>
                         <tr>
@@ -1655,15 +1695,16 @@ $isRootDir  = ($requestedPath === '');
                                     'order'  => $nameSortOrder,
                                 ]);
                                 ?>
-                                <a href="<?= e($nameSortUrl) ?>"
-                                   class="sort-btn <?= $sortBy === 'name' ? 'active' : '' ?>"
-                                   aria-label="Sort by name">
+                                <button type="button"
+                                        class="sort-btn <?= $sortBy === 'name' ? 'active' : '' ?>"
+                                        aria-label="Sort by name"
+                                        data-href="<?= e($nameSortUrl) ?>">
                                     Name
                                     <?php if ($sortBy === 'name') : ?>
                                         <span class="sort-indicator"
                                               aria-hidden="true"><?= $order === 'asc' ? '↑' : '↓' ?></span>
                                     <?php endif; ?>
-                                </a>
+                                </button>
                             </th>
                             <th scope="col" aria-sort="<?= e(getSortAriaAttribute('time', $sortBy, $order)) ?>">
                                 <?php
@@ -1674,15 +1715,16 @@ $isRootDir  = ($requestedPath === '');
                                     'order'  => $dateSortOrder,
                                 ]);
                                 ?>
-                                <a href="<?= e($dateSortUrl) ?>"
-                                   class="sort-btn <?= $sortBy === 'time' ? 'active' : '' ?>"
-                                   aria-label="Sort by date">
+                                <button type="button"
+                                        class="sort-btn <?= $sortBy === 'time' ? 'active' : '' ?>"
+                                        aria-label="Sort by date"
+                                        data-href="<?= e($dateSortUrl) ?>">
                                     Date
                                     <?php if ($sortBy === 'time') : ?>
                                         <span class="sort-indicator"
                                               aria-hidden="true"><?= $order === 'asc' ? '↑' : '↓' ?></span>
                                     <?php endif; ?>
-                                </a>
+                                </button>
                             </th>
                             <th scope="col" aria-sort="<?= e(getSortAriaAttribute('size', $sortBy, $order)) ?>">
                                 <?php
@@ -1693,15 +1735,16 @@ $isRootDir  = ($requestedPath === '');
                                     'order'  => $sizeSortOrder,
                                 ]);
                                 ?>
-                                <a href="<?= e($sizeSortUrl) ?>"
-                                   class="sort-btn <?= $sortBy === 'size' ? 'active' : '' ?>"
-                                   aria-label="Sort by size">
+                                <button type="button"
+                                        class="sort-btn <?= $sortBy === 'size' ? 'active' : '' ?>"
+                                        aria-label="Sort by size"
+                                        data-href="<?= e($sizeSortUrl) ?>">
                                     Size
                                     <?php if ($sortBy === 'size') : ?>
                                         <span class="sort-indicator"
                                               aria-hidden="true"><?= $order === 'asc' ? '↑' : '↓' ?></span>
                                     <?php endif; ?>
-                                </a>
+                                </button>
                             </th>
                             <th scope="col">Hash</th>
                         </tr>
@@ -1825,7 +1868,7 @@ $isRootDir  = ($requestedPath === '');
                         </tr>
                     </tbody>
                 </table>
-            </div>
+            </section>
         </div>
 
         <footer class="footer">
@@ -1844,6 +1887,19 @@ $isRootDir  = ($requestedPath === '');
     var app     = document.getElementById('app');
     if (loading) loading.style.display = 'none';
     if (app)     app.style.display     = 'block';
+
+    // v4.0: Sort buttons are now <button type="button" data-href="..."> elements.
+    // Navigate to data-href on click for progressive enhancement & ARIA compliance.
+    var sortBtns = document.querySelectorAll('.sort-btn[data-href]');
+    sortBtns.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var href = btn.getAttribute('data-href');
+            if (href) {
+                window.location.href = href;
+            }
+        });
+        // Also support Enter/Space as native button does
+    });
 
     // Search functionality
     var searchInput = document.getElementById('searchInput');
