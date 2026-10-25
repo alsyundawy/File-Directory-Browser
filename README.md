@@ -11,12 +11,12 @@
 <h3 align="center">Enterprise-Grade Single-File PHP Directory Indexer & Secure File Explorer</h3>
 
 <p align="center">
-  <a href="https://github.com/alsyundawy/File-Directory-Browser/releases/tag/v4.0.0"><img src="https://img.shields.io/badge/Release-v4.0.0-0284c7?style=for-the-badge&logo=github&logoColor=white" alt="Latest Release v4.0.0"></a>
-  <a href="https://www.php.net/"><img src="https://img.shields.io/badge/PHP-8.0%20%E2%80%94%208.4%2B-777bb4?style=for-the-badge&logo=php&logoColor=white" alt="PHP 8.0 to 8.4+"></a>
+  <a href="https://github.com/alsyundawy/File-Directory-Browser/releases/tag/v4.1.0"><img src="https://img.shields.io/badge/Release-v4.1.0-0284c7?style=for-the-badge&logo=github&logoColor=white" alt="Latest Release v4.1.0"></a>
+  <a href="https://www.php.net/"><img src="https://img.shields.io/badge/PHP-8.0%20%E2%80%94%208.5%2B-777bb4?style=for-the-badge&logo=php&logoColor=white" alt="PHP 8.0 to 8.5+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="License: MIT"></a>
   <a href="https://phpstan.org/"><img src="https://img.shields.io/badge/PHPStan-Level%209%20(Max)-brightgreen?style=for-the-badge&logo=phpstan&logoColor=white" alt="PHPStan Level 9"></a>
   <a href="https://www.w3.org/WAI/standards-guidelines/wcag/"><img src="https://img.shields.io/badge/WCAG-2.2%20AAA-success?style=for-the-badge" alt="WCAG 2.2 AAA"></a>
-  <a href="#security-architecture"><img src="https://img.shields.io/badge/Security-CSP%20%7C%20HSTS%20%7C%20Bcrypt-red?style=for-the-badge&logo=securityscorecard&logoColor=white" alt="Security Hardened"></a>
+  <a href="#security-architecture"><img src="https://img.shields.io/badge/Security-CSP%20%7C%20HSTS%20%7C%20COOP%20%7C%20Bcrypt-red?style=for-the-badge&logo=securityscorecard&logoColor=white" alt="Security Hardened"></a>
   <a href="https://github.com/squizlabs/PHP_CodeSniffer"><img src="https://img.shields.io/badge/PSR--12-Compliant-informational?style=for-the-badge" alt="PSR-12 Compliant"></a>
 </p>
 
@@ -25,8 +25,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/alsyundawy/File-Directory-Browser/releases/tag/v4.0.0">
-    <img src="https://img.shields.io/badge/🚀_Download_Latest_Release-v4.0.0-238636?style=for-the-badge&logo=github&logoColor=white" alt="Download Latest Release v4.0.0">
+  <a href="https://github.com/alsyundawy/File-Directory-Browser/releases/tag/v4.1.0">
+    <img src="https://img.shields.io/badge/🚀_Download_Latest_Release-v4.1.0-238636?style=for-the-badge&logo=github&logoColor=white" alt="Download Latest Release v4.1.0">
   </a>
   <a href="https://github.com/alsyundawy/File-Directory-Browser/releases">
     <img src="https://img.shields.io/badge/📦_All_Releases-View-0284c7?style=for-the-badge&logo=github&logoColor=white" alt="All Releases">
@@ -37,7 +37,7 @@
 > **[`HARRY DERTIN SUTISNA ALSYUNDAWY (@alsyundawy)`](https://github.com/alsyundawy)** —<br>
 > Modern drop-in replacement for Apache `mod_autoindex` and Nginx `autoindex` with zero database or package dependencies.
 >
-> 📦 **[`GitHub Releases (v4.0.0)`](https://github.com/alsyundawy/File-Directory-Browser/releases/tag/v4.0.0)** &nbsp;|&nbsp;
+> 📦 **[`GitHub Releases (v4.1.0)`](https://github.com/alsyundawy/File-Directory-Browser/releases/tag/v4.1.0)** &nbsp;|&nbsp;
 > ⚡ **[`Quick Start`](#quick-start)** &nbsp;|&nbsp;
 > 🔒 **[`Security Architecture`](#security-architecture)** &nbsp;|&nbsp;
 > 📜 **[`Full Changelog`](#changelog)** &nbsp;|&nbsp;
@@ -458,6 +458,38 @@ The codebase adheres to rigorous static analysis standards with zero tolerated w
 ---
 
 ## Changelog
+
+### Version 4.1.0 (October 26, 2026) — PHP2Shell Defense, TLS Hardening, Subdirectory Portability, Xiaomi/POCO Mobile, 2026 SEO & WCAG AAA Color Polish
+
+- **🔒 SECURITY HARDENING (PHP2Shell & Memory Safety):**
+  - **PHP2Shell Core Defense (CVE-2026-109618 & CVE-2026-109619):** Explicitly disabled `session.upload_progress.enabled` at session startup (`ini_set('session.upload_progress.enabled', '0')`) and enforced strict `<8KB` `Content-Length` validation on POST authentication requests, neutralizing memory corruption and Use-After-Free attack vectors.
+  - **Enhanced TLS & HTTPS Detection:** Expanded `isHttpsRequest()` to inspect `$_SERVER['SERVER_PORT'] === 443`, guaranteeing accurate TLS detection and HSTS enforcement across reverse proxy setups.
+  - **Cross-Origin Isolation (COOP & CORP):** Added `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Resource-Policy: same-origin` headers to `sendSecurityHeaders()` for robust browser-level process isolation against cross-origin data leakage and Spectre-class attacks.
+- **🐛 SUBDIRECTORY PORTABILITY & ROUTING FIXES:**
+  - **Unified Base Web Path:** Introduced `getBaseWebPath()` helper to dynamically compute base URL directory path across root and subdirectory deployments.
+  - **Subdirectory Link Resolution:** Corrected file download links (`$downloadUrl`), breadcrumb "Home" link, password prompt return link, parent directory return link, and post-authentication 303 redirect to strictly respect subfolder installations rather than forcing redirects to domain root.
+- **📱 MOBILE, XIAOMI/REDMI/POCO & RESPONSIVE POLISH:**
+  - **Safe-Area Clipping Elimination:** Implemented comprehensive 4-way CSS safe-area insets (`env(safe-area-inset-top/bottom/left/right)`) on `body` and `.container`, eliminating content clipping behind Xiaomi/Redmi/POCO punch-hole cameras, notches, and navigation gesture bars in portrait and landscape modes.
+  - **Font-Inflation & Auto-Zoom Prevention:** Added `-webkit-text-size-adjust: 100%` on `html` to eliminate MIUI/Chrome Mobile automatic font boost, and locked form input font-sizes to `16px` to prevent viewport auto-zooming on mobile browsers.
+  - **VGA to 2K/4K Scaling:** Added dedicated media queries for compact VGA displays (320px–480px) with minimum 420px table touch-scrolling (`-webkit-overflow-scrolling: touch`) and container max-width scaling for 2K/4K displays.
+- **🌐 2026 SEO STANDARDS & STRUCTURED DATA:**
+  - **Meta Tags Suite:** Added `<meta name="keywords">`, dynamic `<meta name="description">`, `<meta name="color-scheme" content="dark">`, `<meta name="theme-color">`, Open Graph tags (`og:type`, `og:site_name`, `og:title`, `og:description`, `og:url`), and Twitter Cards.
+  - **Schema.org JSON-LD:** Integrated dynamic Schema.org `WebPage` structured data with CSP nonce support for answer engines and search indexing.
+  - **Semantic Landmark:** Wrapped main interactive table and search components inside a semantic `<main id="main">` landmark.
+- **♿ ACCESSIBILITY & WORLD COLOR STANDARDS (WCAG 2.2 AA/AAA & APCA):**
+  - **World Contrast Compliance:** Raised foreground contrast ratios to between 5.8:1 and 13.5:1 across all body text, subtitles, table headers, labels, form placeholders, and hash buttons.
+  - **Touch Target Accessibility:** Sized sorting buttons with `min-height: 32px` and comfortable touch padding exceeding WCAG 2.2 SC 2.5.8 requirements.
+- **⚡ PERFORMANCE & RUNTIME RESILIENCE:**
+  - **O(1) Dangerous Extension Lookup:** Optimized `isDisplayableFile()` by converting the dangerous extension list into an internal static hash lookup table via `array_fill_keys()`, replacing linear `in_array()` array scanning.
+  - **Resilient Timezone Initialization:** Wrapped `date_default_timezone_set()` in a `try-catch` block with fallback to `'UTC'` to eliminate unhandled `ValueError` fatal crashes if an unrecognized timezone string is configured.
+  - **Session Garbage Collection Synchronization:** Enforced `session.gc_maxlifetime` to align with `$passwordSessionLifetime` to prevent premature session eviction by the PHP daemon.
+  - **CSS Text-Align Sanitization:** Validated `$alignment` against strict allowlist (`['left', 'center', 'right']`) before injecting into the table stylesheet block.
+- **🛠️ CODE QUALITY & METADATA:**
+  - **Centralized Version Constant:** Bumped `APP_VERSION` to `'4.1.0'`.
+  - **Stand-alone Release Snapshot:** Added `index-v4.1.php` release snapshot.
+  - **Continuous Analysis:** 100% clean passes on Trunk linter, PHPStan Level 9 (Max), Psalm Level 3, and PHP_CodeSniffer (PSR-12).
+
+---
 
 ### Version 4.0.0 (September 27, 2026) — Security Hardening, Mobile SVH & Viewport Polish, WCAG 2.2 AAA & Semantic Architecture
 

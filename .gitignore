@@ -3,3 +3,4 @@
 .cache/
 .php-cs-fixer.cache
 psalm.xml
+.trunk/
