@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<ruleset name="FileDirectoryBrowser">
+    <description>PSR-12 coding standard for File Directory Browser</description>
+    <file>index.php</file>
+    <rule ref="PSR12"/>
+    <exclude-pattern>*/.trunk/*</exclude-pattern>
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*/index-v*.php</exclude-pattern>
+    <exclude-pattern>*/index-awal.php</exclude-pattern>
+</ruleset>
