@@ -1306,12 +1306,8 @@ function isDisplayableFolder(string $name, array $filesToHide, bool $showHiddenF
  * @param bool $showHiddenFiles
  * @return bool
  */
-function isDisplayableFile(
-    string $name,
-    array $filesToHide,
-    array $dangerousExtensions,
-    bool $showHiddenFiles
-): bool {
+function isDisplayableFile(string $name, array $filesToHide, array $dangerousExtensions, bool $showHiddenFiles): bool
+{
     if (in_array($name, $filesToHide, true)) {
         return false;
     }

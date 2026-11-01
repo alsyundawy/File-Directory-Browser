@@ -38,9 +38,10 @@
 > Modern drop-in replacement for Apache `mod_autoindex` and Nginx `autoindex` with zero database or package dependencies.
 >
 > 📦 **[`GitHub Releases (v4.1.0)`](https://github.com/alsyundawy/File-Directory-Browser/releases/tag/v4.1.0)** &nbsp;|&nbsp;
+> 📘 **[`DocNote (14-Pillar Audit)`](DOCNOTE.md)** &nbsp;|&nbsp;
+> 📜 **[`Changelog`](CHANGELOG.md)** &nbsp;|&nbsp;
 > ⚡ **[`Quick Start`](#quick-start)** &nbsp;|&nbsp;
 > 🔒 **[`Security Architecture`](#security-architecture)** &nbsp;|&nbsp;
-> 📜 **[`Full Changelog`](#changelog)** &nbsp;|&nbsp;
 > 💖 **[`Support via PayPal`](https://www.paypal.me/alsyundawy)** &nbsp;|&nbsp;
 > 🇮🇩 **[`QRIS Donation`](#support--donation)**
 
@@ -138,13 +139,13 @@ Everything runs self-contained from a single `index.php` file, featuring instant
 
 ## System Requirements
 
-| Requirement | Minimum Version | Recommended | Notes |
-| :--- | :--- | :--- | :--- |
-| **PHP** | `8.0` | `8.2` — `8.4+` | Full compatibility across PHP 8.0, 8.1, 8.2, 8.3, and 8.4+ |
-| **PHP Extensions** | `session`, `hash`, `json`, `pcre`, `spl` | Standard | All are standard built-in PHP core extensions |
-| **Web Server** | Any standard web server | Apache 2.4+ / Nginx 1.20+ | Works with Apache, Nginx, Caddy, Lighttpd, or PHP CLI built-in server |
-| **HTTPS / SSL** | Strongly Recommended | Let's Encrypt / TLS 1.3 | Required for secure cookies, HSTS enforcement, and CSRF protection |
-| **Database** | None | None | **Zero database required** — operates completely file-based |
+| Requirement        | Minimum Version                          | Recommended               | Notes                                                                 |
+| :----------------- | :--------------------------------------- | :------------------------ | :-------------------------------------------------------------------- |
+| **PHP**            | `8.0`                                    | `8.2` — `8.4+`            | Full compatibility across PHP 8.0, 8.1, 8.2, 8.3, and 8.4+            |
+| **PHP Extensions** | `session`, `hash`, `json`, `pcre`, `spl` | Standard                  | All are standard built-in PHP core extensions                         |
+| **Web Server**     | Any standard web server                  | Apache 2.4+ / Nginx 1.20+ | Works with Apache, Nginx, Caddy, Lighttpd, or PHP CLI built-in server |
+| **HTTPS / SSL**    | Strongly Recommended                     | Let's Encrypt / TLS 1.3   | Required for secure cookies, HSTS enforcement, and CSRF protection    |
+| **Database**       | None                                     | None                      | **Zero database required** — operates completely file-based           |
 
 ---
 
@@ -423,10 +424,10 @@ $loginLockSeconds        = 300;  // Lockout duration in seconds (5 minutes)
 
 ## Keyboard Shortcuts
 
-| Shortcut | Action | Description |
-| :--- | :--- | :--- |
-| `/` or `Ctrl + K` (`Cmd + K` on macOS) | **Focus Search** | Instantly highlights and focuses the search input bar from anywhere on the page |
-| `Escape` | **Clear & Dismiss** | Clears active search filters, restores the full listing, and removes input focus |
+| Shortcut                               | Action              | Description                                                                      |
+| :------------------------------------- | :------------------ | :------------------------------------------------------------------------------- |
+| `/` or `Ctrl + K` (`Cmd + K` on macOS) | **Focus Search**    | Instantly highlights and focuses the search input bar from anywhere on the page  |
+| `Escape`                               | **Clear & Dismiss** | Clears active search filters, restores the full listing, and removes input focus |
 
 ---
 
@@ -653,11 +654,14 @@ The codebase adheres to rigorous static analysis standards with zero tolerated w
 
 ```text
 File-Directory-Browser/
+├── CHANGELOG.md               # Keep a Changelog historical release log
+├── DOCNOTE.md                 # 14-Pillar code audit, architecture & release notes
 ├── LICENSE                    # MIT License
 ├── README.md                  # Project overview, installation, and documentation
 ├── assets/                    # Repository banners, media, and visual assets
 │   ├── alsyundawy-banner.png  # Alsyundawy IT Solution maintainer banner
 │   └── file-directory-browser-banner.jpg # Production flyer & banner
+├── index-v4.1.php             # Standalone immutable release snapshot for v4.1.0
 └── index.php                  # Complete single-file directory indexer & file browser
 ```
 
