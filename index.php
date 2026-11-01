@@ -2074,7 +2074,7 @@ $isRootDir  = ($requestedPath === '');
                 searchInput.focus();
             } else if (e.key === 'Escape' && document.activeElement === searchInput) {
                 searchInput.value = '';
-                searchInput.dispatchEvent(new Event('input'));
+                searchInput.dispatchEvent(new window.Event('input'));
                 searchInput.blur();
             }
         });
